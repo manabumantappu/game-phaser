@@ -205,26 +205,29 @@ export default class GameScene extends Phaser.Scene {
   }
 
   canMove(dir) {
-    const testX = this.player.x + dir.x * TILE;
-    const testY = this.player.y + dir.y * TILE;
+  if (dir.x === 0 && dir.y === 0) return false;
 
-    for (let w of this.walls.getChildren()) {
-      if (
-        Phaser.Geom.Intersects.RectangleToRectangle(
-          new Phaser.Geom.Rectangle(
-            testX - 14,
-            testY - 14,
-            28,
-            28
-          ),
-          w.getBounds()
-        )
-      ) {
-        return false;
-      }
-    }
-    return true;
+  // posisi relatif ke grid
+  const gridX = Math.round(this.player.x / TILE);
+  const gridY = Math.round((this.player.y - HUD_HEIGHT) / TILE);
+
+  const nextX = gridX + dir.x;
+  const nextY = gridY + dir.y;
+
+  // batas map
+  if (
+    nextY < 0 ||
+    nextY >= this.grid.length ||
+    nextX < 0 ||
+    nextX >= this.grid[0].length
+  ) {
+    return false;
   }
+
+  // cek wall
+  return this.grid[nextY][nextX] !== "1";
+}
+
 
   snapToCenter(sprite) {
   const cx = Math.round(sprite.x / TILE) * TILE;
@@ -329,22 +332,30 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-// TURN / START MOVE
-if (
-  this.currentDir.x === 0 &&
-  this.currentDir.y === 0 &&
-  (this.nextDir.x !== 0 || this.nextDir.y !== 0) &&
-  this.canMove(this.nextDir)
-) {
-  // pertama kali mulai jalan
-  this.setDirection(this.nextDir);
-}
-else if (this.isNearCenter(this.player)) {
-  this.snapToCenter(this.player);
-  if (this.canMove(this.nextDir)) {
-    this.setDirection(this.nextDir);
+canMove(dir) {
+  if (dir.x === 0 && dir.y === 0) return false;
+
+  // posisi relatif ke grid
+  const gridX = Math.round(this.player.x / TILE);
+  const gridY = Math.round((this.player.y - HUD_HEIGHT) / TILE);
+
+  const nextX = gridX + dir.x;
+  const nextY = gridY + dir.y;
+
+  // batas map
+  if (
+    nextY < 0 ||
+    nextY >= this.grid.length ||
+    nextX < 0 ||
+    nextX >= this.grid[0].length
+  ) {
+    return false;
   }
+
+  // cek wall
+  return this.grid[nextY][nextX] !== "1";
 }
+
 
     // MOVE
     this.player.setVelocity(
