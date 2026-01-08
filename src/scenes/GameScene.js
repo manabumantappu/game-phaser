@@ -11,19 +11,26 @@ export default class GameScene extends Phaser.Scene {
   init(data) {
     this.levelIndex = data.level ?? 0;
     this.powerMode = false;
+    this.levelCleared = false;
   }
 
   create() {
     this.level = LEVELS[this.levelIndex];
+
     this.cursors = this.input.keyboard.createCursorKeys();
     this.joystick = new VirtualJoystick(this);
 
-    // AUDIO
+    /* =====================
+       AUDIO
+    ===================== */
     this.sfxCollect = this.sound.add("collect", { volume: 0.8 });
     this.sfxClick = this.sound.add("click", { volume: 0.6 });
 
     if (!this.sound.get("bgm")) {
-      this.bgm = this.sound.add("bgm", { loop: true, volume: 0.4 });
+      this.bgm = this.sound.add("bgm", {
+        loop: true,
+        volume: 0.4
+      });
       this.bgm.play();
     }
 
@@ -32,6 +39,9 @@ export default class GameScene extends Phaser.Scene {
     this.createGhosts();
   }
 
+  /* =====================
+     MAP
+  ===================== */
   buildMap() {
     this.walls = this.physics.add.staticGroup();
     this.pellets = this.physics.add.group();
@@ -61,6 +71,9 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  /* =====================
+     PLAYER
+  ===================== */
   createPlayer() {
     const px = this.level.player.x * TILE + 16;
     const py = this.level.player.y * TILE + 16;
@@ -74,15 +87,24 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.pellets, (_, p) => {
       p.destroy();
       this.sfxCollect.play();
+      this.checkWin();
     });
 
     this.physics.add.overlap(this.player, this.powerPellets, (_, p) => {
       p.destroy();
       this.powerMode = true;
-      this.time.delayedCall(6000, () => (this.powerMode = false));
+
+      this.time.delayedCall(6000, () => {
+        this.powerMode = false;
+      });
+
+      this.checkWin();
     });
   }
 
+  /* =====================
+     GHOST
+  ===================== */
   createGhosts() {
     this.ghosts = this.physics.add.group();
 
@@ -92,7 +114,6 @@ export default class GameScene extends Phaser.Scene {
         g.y * TILE + 16,
         "ghost"
       );
-
       ghost.setDisplaySize(28, 28);
       ghost.speed = 70;
     });
@@ -100,6 +121,8 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.ghosts, this.walls);
 
     this.physics.add.overlap(this.player, this.ghosts, (_, ghost) => {
+      if (this.levelCleared) return;
+
       if (this.powerMode) {
         ghost.destroy();
         this.sfxCollect.play();
@@ -109,17 +132,103 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  /* =====================
+     WIN CHECK
+  ===================== */
+  checkWin() {
+    if (
+      this.levelCleared ||
+      this.pellets.countActive(true) > 0 ||
+      this.powerPellets.countActive(true) > 0
+    ) return;
+
+    this.levelCleared = true;
+    this.showLevelClear();
+  }
+
+  /* =====================
+     LEVEL CLEAR ANIMATION
+  ===================== */
+  showLevelClear() {
+    this.player.setVelocity(0);
+    this.ghosts.setVelocityX(0);
+    this.ghosts.setVelocityY(0);
+
+    const { width, height } = this.scale;
+
+    // Dark overlay
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x000000,
+      0.6
+    ).setDepth(10);
+
+    // Text
+    const text = this.add.text(
+      width / 2,
+      height / 2,
+      "LEVEL CLEAR",
+      {
+        fontSize: "36px",
+        fontStyle: "bold",
+        color: "#ffff00"
+      }
+    ).setOrigin(0.5).setDepth(11);
+
+    text.setScale(0.2);
+
+    // Animation
+    this.tweens.add({
+      targets: text,
+      scale: 1,
+      duration: 400,
+      ease: "Back.Out"
+    });
+
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: 900,
+      duration: 300
+    });
+
+    this.time.delayedCall(1300, () => {
+      this.nextLevel();
+    });
+  }
+
+  /* =====================
+     NEXT LEVEL
+  ===================== */
+  nextLevel() {
+    if (this.levelIndex + 1 >= LEVELS.length) {
+      this.scene.start("GameOverScene");
+    } else {
+      this.scene.start("GameScene", {
+        level: this.levelIndex + 1
+      });
+    }
+  }
+
+  /* =====================
+     UPDATE
+  ===================== */
   update() {
+    if (this.levelCleared) return;
+
     let vx = 0, vy = 0;
     const speed = 140;
 
-    // KEYBOARD
+    // Keyboard
     if (this.cursors.left.isDown) vx = -speed;
     else if (this.cursors.right.isDown) vx = speed;
     if (this.cursors.up.isDown) vy = -speed;
     else if (this.cursors.down.isDown) vy = speed;
 
-    // MOBILE
+    // Mobile joystick
     if (this.joystick.forceX || this.joystick.forceY) {
       vx = this.joystick.forceX * speed;
       vy = this.joystick.forceY * speed;
@@ -127,13 +236,13 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.setVelocity(vx, vy);
 
-    // ROTASI PACMAN (GANTI ANIMASI)
+    // Rotate Pac-Man
     if (vx < 0) this.player.setAngle(180);
     else if (vx > 0) this.player.setAngle(0);
     else if (vy < 0) this.player.setAngle(270);
     else if (vy > 0) this.player.setAngle(90);
 
-    // GHOST CHASE AI
+    // Ghost chase AI
     this.ghosts.children.iterate(g => {
       this.physics.moveToObject(g, this.player, g.speed);
     });
