@@ -321,12 +321,22 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // TURN
-    if (this.isNearCenter(this.player)) {
-      if (this.canMove(this.nextDir)) {
-        this.setDirection(this.nextDir);
-      }
-    }
+    
+  // TURN / START MOVE
+if (
+  this.currentDir.x === 0 &&
+  this.currentDir.y === 0 &&
+  this.canMove(this.nextDir)
+) {
+  // pertama kali mulai jalan
+  this.setDirection(this.nextDir);
+}
+else if (this.isNearCenter(this.player)) {
+  if (this.canMove(this.nextDir)) {
+    this.setDirection(this.nextDir);
+  }
+}
+
 
     // MOVE
     this.player.setVelocity(
