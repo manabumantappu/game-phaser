@@ -202,7 +202,10 @@ export default class GameScene extends Phaser.Scene {
           score: this.score
         });
       }
-      setDirection(dir) {
+     /* =====================
+   MOVEMENT HELPERS
+===================== */
+setDirection(dir) {
   this.currentDir = dir;
   const speed = 140;
   this.player.setVelocity(
@@ -211,38 +214,39 @@ export default class GameScene extends Phaser.Scene {
   );
 }
 
-      // 👇👇👇 TEMPEL JUGA
-      isNearCenter(sprite) {
-  const tx = Math.round((sprite.x) / TILE) * TILE;
-  const ty = Math.round((sprite.y - HUD_HEIGHT) / TILE) * TILE + HUD_HEIGHT;
+isNearCenter(sprite) {
+  const tx = Math.round(sprite.x / TILE) * TILE;
+  const ty =
+    Math.round((sprite.y - HUD_HEIGHT) / TILE) * TILE + HUD_HEIGHT;
 
   return (
     Math.abs(sprite.x - tx) < 4 &&
     Math.abs(sprite.y - ty) < 4
   );
 }
-// 👇👇👇 TEMPEL JUGA
-  canMove(dir) {
-    const testX = this.player.x + dir.x * TILE;
-    const testY = this.player.y + dir.y * TILE;
 
-    for (let w of this.walls.getChildren()) {
-      if (
-        Phaser.Geom.Intersects.RectangleToRectangle(
-          new Phaser.Geom.Rectangle(
-            testX - 14,
-            testY - 14,
-            28,
-            28
-          ),
-          w.getBounds()
-        )
-      ) {
-        return false;
-      }
+canMove(dir) {
+  const testX = this.player.x + dir.x * TILE;
+  const testY = this.player.y + dir.y * TILE;
+
+  for (let w of this.walls.getChildren()) {
+    if (
+      Phaser.Geom.Intersects.RectangleToRectangle(
+        new Phaser.Geom.Rectangle(
+          testX - 14,
+          testY - 14,
+          28,
+          28
+        ),
+        w.getBounds()
+      )
+    ) {
+      return false;
     }
-    return true;
   }
+  return true;
+}
+
     });
   }
 
