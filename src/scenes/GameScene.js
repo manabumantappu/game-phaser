@@ -46,22 +46,30 @@ export default class GameScene extends Phaser.Scene {
     this.createUI();
     this.createControls();
     this.createTimer();
+    this.createJoystick();
+
+    // Tutorial only on first level & mobile
+    if (this.level === 0 && this.sys.game.device.input.touch) {
+      this.showTutorial();
+    }
   }
 
+  /* ======================
+     MAZE
+  ====================== */
   createMaze() {
-    const maze = this.map;
     const tile = this.tileSize;
 
     this.walls = this.physics.add.staticGroup();
     this.targets = this.physics.add.group();
 
-    maze.forEach((row, y) => {
+    this.map.forEach((row, y) => {
       [...row].forEach((cell, x) => {
         const px = x * tile + tile / 2;
         const py = y * tile + tile / 2;
 
         if (cell === "#") {
-          const wall = this.add.rectangle(px, py, tile, tile, 0xaa3333);
+          const wall = this.add.rectangle(px, py, tile, tile, 0x992222);
           this.walls.add(wall);
         }
 
@@ -80,11 +88,13 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.targetsLeft = this.targets.getChildren().length;
-
     this.physics.add.collider(this.player, this.walls);
     this.physics.add.overlap(this.player, this.targets, this.collectTarget, null, this);
   }
 
+  /* ======================
+     UI
+  ====================== */
   createUI() {
     this.timeLeft = 40;
     this.uiText = this.add.text(10, 10, "", {
@@ -94,12 +104,25 @@ export default class GameScene extends Phaser.Scene {
     this.updateUI();
   }
 
+  updateUI() {
+    this.uiText.setText(
+      `Level: ${this.level + 1}\nScore: ${this.score}\nTargets: ${this.targetsLeft}\nTime: ${this.timeLeft}`
+    );
+  }
+
+  /* ======================
+     CONTROLS
+  ====================== */
   createControls() {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys("W,A,S,D");
-    this.createVirtualPad();
+
+    this.moveLeft = this.moveRight = this.moveUp = this.moveDown = false;
   }
 
+  /* ======================
+     TIMER
+  ====================== */
   createTimer() {
     this.time.addEvent({
       delay: 1000,
@@ -112,10 +135,17 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  /* ======================
+     GAME LOGIC
+  ====================== */
   collectTarget(player, target) {
     target.destroy();
     this.targetsLeft--;
     this.score += 10;
+
+    // Haptic feedback
+    if (navigator.vibrate) navigator.vibrate(40);
+
     this.updateUI();
 
     if (this.targetsLeft <= 0) {
@@ -126,13 +156,8 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  updateUI() {
-    this.uiText.setText(
-      `Level: ${this.level + 1}\nScore: ${this.score}\nTargets: ${this.targetsLeft}\nTime: ${this.timeLeft}`
-    );
-  }
-
   endGame() {
+    navigator.vibrate?.([100, 50, 100]);
     this.scene.start("GameOverScene", { score: this.score });
   }
 
@@ -141,6 +166,7 @@ export default class GameScene extends Phaser.Scene {
     const body = this.player.body;
     body.setVelocity(0);
 
+    // Keyboard
     if (this.cursors.left.isDown || this.keys.A.isDown || this.moveLeft)
       body.setVelocityX(-speed);
     if (this.cursors.right.isDown || this.keys.D.isDown || this.moveRight)
@@ -149,34 +175,94 @@ export default class GameScene extends Phaser.Scene {
       body.setVelocityY(-speed);
     if (this.cursors.down.isDown || this.keys.S.isDown || this.moveDown)
       body.setVelocityY(speed);
+
+    // Analog joystick
+    if (this.joyActive) {
+      body.setVelocity(
+        this.joyVector.x * speed,
+        this.joyVector.y * speed
+      );
+    }
   }
 
   /* ======================
-     VIRTUAL D-PAD
+     ANALOG JOYSTICK
   ====================== */
-  createVirtualPad() {
+  createJoystick() {
+    this.joyActive = false;
+    this.joyVector = new Phaser.Math.Vector2(0, 0);
+
+    const { height, width } = this.scale;
+
+    this.joyBase = this.add.circle(90, height - 110, 40, 0xffffff, 0.2)
+      .setScrollFactor(0)
+      .setVisible(false);
+
+    this.joyThumb = this.add.circle(90, height - 110, 20, 0xffffff, 0.5)
+      .setScrollFactor(0)
+      .setVisible(false);
+
+    this.input.on("pointerdown", p => {
+      if (p.x < width / 2) {
+        this.joyActive = true;
+        this.joyBase.setPosition(p.x, p.y).setVisible(true);
+        this.joyThumb.setPosition(p.x, p.y).setVisible(true);
+        this.joyStart = new Phaser.Math.Vector2(p.x, p.y);
+      }
+    });
+
+    this.input.on("pointermove", p => {
+      if (!this.joyActive) return;
+
+      const dx = p.x - this.joyStart.x;
+      const dy = p.y - this.joyStart.y;
+      const dist = Math.min(40, Math.hypot(dx, dy));
+      const angle = Math.atan2(dy, dx);
+
+      this.joyVector.set(Math.cos(angle), Math.sin(angle));
+      this.joyThumb.setPosition(
+        this.joyStart.x + Math.cos(angle) * dist,
+        this.joyStart.y + Math.sin(angle) * dist
+      );
+    });
+
+    this.input.on("pointerup", () => {
+      this.joyActive = false;
+      this.joyVector.set(0, 0);
+      this.joyBase.setVisible(false);
+      this.joyThumb.setVisible(false);
+    });
+  }
+
+  /* ======================
+     TUTORIAL
+  ====================== */
+  showTutorial() {
     const { width, height } = this.scale;
-    this.moveLeft = this.moveRight = this.moveUp = this.moveDown = false;
 
-    const size = 48;
-    const alpha = 0.4;
-    const yBase = height - 100;
-    const xBase = 80;
+    const bg = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width - 40,
+      180,
+      0x000000,
+      0.75
+    ).setScrollFactor(0);
 
-    const createBtn = (x, y, dir) => {
-      const btn = this.add
-        .rectangle(x, y, size, size, 0xffffff, alpha)
-        .setScrollFactor(0)
-        .setInteractive();
+    const text = this.add.text(
+      width / 2,
+      height / 2,
+      "Use joystick to move\nCollect yellow squares\nFinish before time runs out",
+      {
+        color: "#ffffff",
+        align: "center",
+        fontSize: "16px"
+      }
+    ).setOrigin(0.5).setScrollFactor(0);
 
-      btn.on("pointerdown", () => (this[dir] = true));
-      btn.on("pointerup", () => (this[dir] = false));
-      btn.on("pointerout", () => (this[dir] = false));
-    };
-
-    createBtn(xBase - size, yBase, "moveLeft");
-    createBtn(xBase + size, yBase, "moveRight");
-    createBtn(xBase, yBase - size, "moveUp");
-    createBtn(xBase, yBase + size, "moveDown");
+    this.input.once("pointerdown", () => {
+      bg.destroy();
+      text.destroy();
+    });
   }
 }
