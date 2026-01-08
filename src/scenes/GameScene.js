@@ -10,6 +10,7 @@ export default class GameScene extends Phaser.Scene {
 
   init(data) {
     this.levelIndex = data.level ?? 0;
+    this.score = data.score ?? 0;
     this.powerMode = false;
     this.levelCleared = false;
   }
@@ -25,6 +26,7 @@ export default class GameScene extends Phaser.Scene {
     ===================== */
     this.sfxCollect = this.sound.add("collect", { volume: 0.8 });
     this.sfxClick = this.sound.add("click", { volume: 0.6 });
+    this.sfxLevelClear = this.sound.add("levelclear", { volume: 0.9 });
 
     if (!this.sound.get("bgm")) {
       this.bgm = this.sound.add("bgm", {
@@ -37,6 +39,27 @@ export default class GameScene extends Phaser.Scene {
     this.buildMap();
     this.createPlayer();
     this.createGhosts();
+    this.createHUD();
+  }
+
+  /* =====================
+     HUD
+  ===================== */
+  createHUD() {
+    this.hudScore = this.add.text(12, 8, `SCORE: ${this.score}`, {
+      fontSize: "16px",
+      color: "#ffff00",
+      fontStyle: "bold"
+    }).setScrollFactor(0);
+
+    this.hudLevel = this.add.text(200, 8, `LEVEL ${this.levelIndex + 1}`, {
+      fontSize: "16px",
+      color: "#ffffff"
+    }).setScrollFactor(0);
+  }
+
+  updateHUD() {
+    this.hudScore.setText(`SCORE: ${this.score}`);
   }
 
   /* =====================
@@ -84,15 +107,21 @@ export default class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.walls);
 
+    // Pellet
     this.physics.add.overlap(this.player, this.pellets, (_, p) => {
       p.destroy();
+      this.score += 10;
       this.sfxCollect.play();
+      this.updateHUD();
       this.checkWin();
     });
 
+    // Power pellet
     this.physics.add.overlap(this.player, this.powerPellets, (_, p) => {
       p.destroy();
+      this.score += 50;
       this.powerMode = true;
+      this.updateHUD();
 
       this.time.delayedCall(6000, () => {
         this.powerMode = false;
@@ -125,9 +154,14 @@ export default class GameScene extends Phaser.Scene {
 
       if (this.powerMode) {
         ghost.destroy();
+        this.score += 200;
         this.sfxCollect.play();
+        this.updateHUD();
       } else {
-        this.scene.restart({ level: this.levelIndex });
+        this.scene.restart({
+          level: this.levelIndex,
+          score: this.score
+        });
       }
     });
   }
@@ -154,9 +188,10 @@ export default class GameScene extends Phaser.Scene {
     this.ghosts.setVelocityX(0);
     this.ghosts.setVelocityY(0);
 
+    this.sfxLevelClear.play();
+
     const { width, height } = this.scale;
 
-    // Dark overlay
     const overlay = this.add.rectangle(
       width / 2,
       height / 2,
@@ -166,7 +201,6 @@ export default class GameScene extends Phaser.Scene {
       0.6
     ).setDepth(10);
 
-    // Text
     const text = this.add.text(
       width / 2,
       height / 2,
@@ -180,7 +214,6 @@ export default class GameScene extends Phaser.Scene {
 
     text.setScale(0.2);
 
-    // Animation
     this.tweens.add({
       targets: text,
       scale: 1,
@@ -188,14 +221,7 @@ export default class GameScene extends Phaser.Scene {
       ease: "Back.Out"
     });
 
-    this.tweens.add({
-      targets: text,
-      alpha: 0,
-      delay: 900,
-      duration: 300
-    });
-
-    this.time.delayedCall(1300, () => {
+    this.time.delayedCall(1200, () => {
       this.nextLevel();
     });
   }
@@ -205,10 +231,13 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   nextLevel() {
     if (this.levelIndex + 1 >= LEVELS.length) {
-      this.scene.start("GameOverScene");
+      this.scene.start("GameOverScene", {
+        score: this.score
+      });
     } else {
       this.scene.start("GameScene", {
-        level: this.levelIndex + 1
+        level: this.levelIndex + 1,
+        score: this.score
       });
     }
   }
