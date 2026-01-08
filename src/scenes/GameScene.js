@@ -16,6 +16,7 @@ export default class GameScene extends Phaser.Scene {
   init(data) {
     this.levelIndex = data.level ?? 0;
     this.score = data.score ?? 0;
+    this.ghosts = [];
 
     this.currentDir = { x: 0, y: 0 };
     this.nextDir = { x: 0, y: 0 };
@@ -49,6 +50,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.buildMap();
     this.createPlayer();
+    this.createGhosts(); // 👻 TAMBAHKAN
     this.createHUD();
   }
 
@@ -132,6 +134,99 @@ export default class GameScene extends Phaser.Scene {
       "pacman"
     ).setDisplaySize(28, 28);
   }
+   /* =====================
+     GHOST
+  ===================== */
+createGhosts() {
+  this.ghosts = [];
+
+  this.level.ghosts.forEach(g => {
+    const ghost = {
+      tileX: g.x,
+      tileY: g.y,
+      dir: { x: 0, y: 0 },
+      moving: false,
+      sprite: this.add.sprite(
+        g.x * TILE + TILE / 2,
+        HUD_HEIGHT + g.y * TILE + TILE / 2,
+        "ghost"
+      ).setDisplaySize(28, 28)
+    };
+
+    this.ghosts.push(ghost);
+  });
+}
+moveGhosts() {
+  this.ghosts.forEach(ghost => {
+    if (ghost.moving) return;
+
+    // arah menuju pacman
+    const dx = this.tileX - ghost.tileX;
+    const dy = this.tileY - ghost.tileY;
+
+    let dir;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      dir = { x: Math.sign(dx), y: 0 };
+    } else {
+      dir = { x: 0, y: Math.sign(dy) };
+    }
+
+    // fallback random kalau buntu
+    if (!this.canMoveGhost(ghost, dir)) {
+      const dirs = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 }
+      ];
+      Phaser.Utils.Array.Shuffle(dirs);
+      dir = dirs.find(d => this.canMoveGhost(ghost, d));
+    }
+
+    if (dir) this.startGhostMove(ghost, dir);
+  });
+}
+canMoveGhost(ghost, dir) {
+  const nx = ghost.tileX + dir.x;
+  const ny = ghost.tileY + dir.y;
+
+  if (
+    ny < 0 ||
+    ny >= this.mapHeight ||
+    nx < 0 ||
+    nx >= this.mapWidth
+  ) return false;
+
+  return this.level.map[ny][nx] !== "1";
+}
+
+startGhostMove(ghost, dir) {
+  ghost.moving = true;
+
+  const tx = ghost.tileX + dir.x;
+  const ty = ghost.tileY + dir.y;
+
+  this.tweens.add({
+    targets: ghost.sprite,
+    x: tx * TILE + TILE / 2,
+    y: HUD_HEIGHT + ty * TILE + TILE / 2,
+    duration: MOVE_DURATION + 40,
+    ease: "Linear",
+    onComplete: () => {
+      ghost.tileX = tx;
+      ghost.tileY = ty;
+      ghost.moving = false;
+
+      // cek tabrakan pacman
+      if (ghost.tileX === this.tileX && ghost.tileY === this.tileY) {
+        this.scene.restart({
+          level: this.levelIndex,
+          score: this.score
+        });
+      }
+    }
+  });
+}
 
   /* =====================
      INPUT
@@ -245,6 +340,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.moving) return;
 
     if (this.canMove(this.nextDir)) {
+      this.moveGhosts();
       this.startMove(this.nextDir);
     } else if (this.canMove(this.currentDir)) {
       this.startMove(this.currentDir);
