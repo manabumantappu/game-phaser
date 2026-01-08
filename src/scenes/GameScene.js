@@ -27,14 +27,6 @@ export default class GameScene extends Phaser.Scene {
       this.bgm.play();
     }
 
-    // ANIM
-    this.anims.create({
-      key: "chomp",
-      frames: this.anims.generateFrameNumbers("pacman", { start: 0, end: 2 }),
-      frameRate: 10,
-      repeat: -1
-    });
-
     this.buildMap();
     this.createPlayer();
     this.createGhosts();
@@ -50,22 +42,33 @@ export default class GameScene extends Phaser.Scene {
         const px = x * TILE + TILE / 2;
         const py = y * TILE + TILE / 2;
 
-        if (cell === "1") this.walls.create(px, py, "wall").refreshBody();
-        if (cell === "0") this.pellets.create(px, py, "pellet");
-        if (cell === "2") this.powerPellets.create(px, py, "power");
+        if (cell === "1") {
+          const wall = this.walls.create(px, py, "wall");
+          wall.setDisplaySize(32, 32);
+          wall.refreshBody();
+        }
+
+        if (cell === "0") {
+          const p = this.pellets.create(px, py, "pellet");
+          p.setDisplaySize(8, 8);
+        }
+
+        if (cell === "2") {
+          const p = this.powerPellets.create(px, py, "power");
+          p.setDisplaySize(14, 14);
+        }
       });
     });
   }
 
   createPlayer() {
-    this.player = this.physics.add.sprite(
-      this.level.player.x * TILE + 16,
-      this.level.player.y * TILE + 16,
-      "pacman"
-    );
+    const px = this.level.player.x * TILE + 16;
+    const py = this.level.player.y * TILE + 16;
 
-    this.player.play("chomp");
+    this.player = this.physics.add.sprite(px, py, "pacman");
+    this.player.setDisplaySize(28, 28);
     this.player.setCollideWorldBounds(true);
+
     this.physics.add.collider(this.player, this.walls);
 
     this.physics.add.overlap(this.player, this.pellets, (_, p) => {
@@ -89,6 +92,8 @@ export default class GameScene extends Phaser.Scene {
         g.y * TILE + 16,
         "ghost"
       );
+
+      ghost.setDisplaySize(28, 28);
       ghost.speed = 70;
     });
 
@@ -105,13 +110,16 @@ export default class GameScene extends Phaser.Scene {
   }
 
   update() {
-    let vx = 0, vy = 0, speed = 140;
+    let vx = 0, vy = 0;
+    const speed = 140;
 
+    // KEYBOARD
     if (this.cursors.left.isDown) vx = -speed;
     else if (this.cursors.right.isDown) vx = speed;
     if (this.cursors.up.isDown) vy = -speed;
     else if (this.cursors.down.isDown) vy = speed;
 
+    // MOBILE
     if (this.joystick.forceX || this.joystick.forceY) {
       vx = this.joystick.forceX * speed;
       vy = this.joystick.forceY * speed;
@@ -119,7 +127,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.setVelocity(vx, vy);
 
-    // arah mulut
+    // ROTASI PACMAN (GANTI ANIMASI)
     if (vx < 0) this.player.setAngle(180);
     else if (vx > 0) this.player.setAngle(0);
     else if (vy < 0) this.player.setAngle(270);
