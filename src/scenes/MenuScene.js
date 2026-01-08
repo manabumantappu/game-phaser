@@ -6,125 +6,89 @@ export default class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    /* ======================
-       BACKGROUND
-    ====================== */
+    // Background
     this.add.rectangle(
       width / 2,
       height / 2,
       width,
       height,
-      0x111111
+      0x000000
     );
 
-    /* ======================
-       TITLE
-    ====================== */
-    this.add.text(
+    // =====================
+    // JUDUL GAME
+    // =====================
+    const title = this.add.text(
       width / 2,
-      height * 0.28,
-      "MAZE\nPUZZLE",
+      height * 0.3,
+      "MANABU\nMANTAPPU",
       {
         fontSize: "42px",
-        color: "#ffffff",
         fontStyle: "bold",
+        color: "#ffff00",
         align: "center"
       }
-    ).setOrigin(0.5);
+    )
+    .setOrigin(0.5);
 
+    // Animasi masuk (halus)
+    title.setScale(0.2);
+    this.tweens.add({
+      targets: title,
+      scale: 1,
+      duration: 600,
+      ease: "Back.Out"
+    });
+
+    // Subtitle
     this.add.text(
       width / 2,
-      height * 0.4,
-      "Mobile Puzzle Game",
+      height * 0.42,
+      "PAC-MAN STYLE GAME",
       {
         fontSize: "14px",
-        color: "#aaaaaa"
+        color: "#ffffff"
       }
     ).setOrigin(0.5);
 
-    /* ======================
-       BUTTONS
-    ====================== */
-    this.createButton(
+    // =====================
+    // BUTTON START
+    // =====================
+    const btn = this.add.rectangle(
       width / 2,
-      height * 0.55,
+      height * 0.6,
+      220,
+      54,
+      0xffff00
+    ).setInteractive({ useHandCursor: true });
+
+    const btnText = this.add.text(
+      width / 2,
+      height * 0.6,
       "START",
-      () => {
-        this.unlockAudio();
-this.sound.play("click", { volume: 0.7 });
+      {
+        fontSize: "20px",
+        fontStyle: "bold",
+        color: "#000000"
+      }
+    ).setOrigin(0.5);
 
-this.scene.start("GameScene", { level: 0 });
-       
-       }
-    );
+    btn.on("pointerdown", () => {
+      this.scene.start("GameScene", {
+        level: 0,
+        score: 0
+      });
+    });
 
-       /* ======================
-       FOOTER
-    ====================== */
+    // Footer
     this.add.text(
       width / 2,
       height - 30,
-      "Tap button to play",
+      "Tap to Start",
       {
         fontSize: "12px",
-        color: "#777777"
+        color: "#aaaaaa"
       }
     ).setOrigin(0.5);
-  }
-
-  /* ======================
-     AUDIO SAFE FUNCTIONS
-  ====================== */
-  unlockAudio() {
-  if (this.sound.context && this.sound.context.state === "suspended") {
-    this.sound.unlock();
-  }
-}
-
-  safePlayClick() {
-    if (this.sound && this.sound.get("click")) {
-      this.sound.play("click", { volume: 0.6 });
-    }
-  }
-
-  /* ======================
-     BUTTON COMPONENT
-  ====================== */
-  createButton(x, y, label, onClick) {
-    const btnWidth = 220;
-    const btnHeight = 54;
-
-    const button = this.add.rectangle(
-      x,
-      y,
-      btnWidth,
-      btnHeight,
-      0x00bfa5
-    ).setInteractive({ useHandCursor: true });
-
-    const text = this.add.text(
-      x,
-      y,
-      label,
-      {
-        fontSize: "18px",
-        color: "#000000",
-        fontStyle: "bold"
-      }
-    ).setOrigin(0.5);
-
-    button.on("pointerdown", () => {
-      button.setScale(0.95);
-      navigator.vibrate?.(20);
-    });
-
-    button.on("pointerup", () => {
-      button.setScale(1);
-      onClick();
-    });
-
-    button.on("pointerout", () => {
-      button.setScale(1);
-    });
   }
 }
