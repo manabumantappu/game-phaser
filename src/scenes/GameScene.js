@@ -13,6 +13,9 @@ export default class GameScene extends Phaser.Scene {
     this.score = data.score ?? 0;
     this.powerMode = false;
     this.levelCleared = false;
+    
+    // 🔊 AUDIO STATE
+  this.isMuted = data.muted ?? false;
   }
 
   create() {
