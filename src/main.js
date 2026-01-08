@@ -9,7 +9,6 @@ const config = {
   height: 640,
   backgroundColor: "#1e1e1e",
 
-  // ✅ WAJIB untuk touch / joystick Android
   input: {
     activePointers: 3
   },
@@ -27,11 +26,10 @@ const config = {
   },
 
   scene: [
-  BootScene,
-  MenuScene,
-  LevelSelectScene,
-  GameScene,
-  GameOverScene
+    BootScene,
+    MenuScene,
+    GameScene,
+    GameOverScene
   ]
 };
 
