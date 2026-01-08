@@ -26,7 +26,9 @@ export default class GameScene extends Phaser.Scene {
     this.tileY = 0;
     this.moving = false;
 
-    this.powerMode = false;
+    this.frightened = false;
+    this.frightenedTimer = null;
+
     this.ghosts = [];
   }
 
@@ -40,14 +42,14 @@ export default class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.joystick = new VirtualJoystick(this);
 
-    // 🔊 unlock audio (mobile)
+    // unlock audio (mobile)
     this.input.once("pointerdown", () => {
       if (this.sound.context.state === "suspended") {
         this.sound.context.resume();
       }
     });
 
-    // 🔊 sounds
+    // sounds
     this.sfxCollect = this.sound.add("collect", { volume: 0.8 });
     this.sfxPower = this.sound.add("click", { volume: 0.8 });
 
@@ -113,7 +115,6 @@ export default class GameScene extends Phaser.Scene {
 
     this.level.map.forEach((row, y) => {
       this.pellets[y] = [];
-
       [...row].forEach((cell, x) => {
         const px = x * TILE + TILE / 2;
         const py = HUD_HEIGHT + y * TILE + TILE / 2;
@@ -122,17 +123,11 @@ export default class GameScene extends Phaser.Scene {
           this.add.image(px, py, "wall").setDisplaySize(TILE, TILE);
           this.pellets[y][x] = null;
         }
-        else if (cell === "0") {
+        else if (cell === "0" || cell === "2") {
           const p = this.add.image(px, py, "pellet");
-          p.setDisplaySize(12, 12).setTint(0xffff00);
+          p.setDisplaySize(cell === "2" ? 18 : 12, cell === "2" ? 18 : 12);
+          p.isPower = cell === "2";
           this.pellets[y][x] = p;
-          this.totalPellets++;
-        }
-        else if (cell === "2") {
-          const p = this.add.image(px, py, "pellet");
-          p.setDisplaySize(18, 18).setTint(0x00ffff);
-          this.pellets[y][x] = p;
-          p.isPower = true;
           this.totalPellets++;
         }
         else {
@@ -157,72 +152,66 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /* =====================
-     GHOST
+     GHOSTS
   ===================== */
- createGhosts() {
-  this.ghosts = [];
+  createGhosts() {
+    this.ghosts = [];
 
-  this.level.ghosts.forEach(g => {
-    const ghost = {
-      tileX: g.x,
-      tileY: g.y,
-      type: g.type || "blinky",
-      moving: false,
-      sprite: this.add.sprite(
-        g.x * TILE + TILE / 2,
-        HUD_HEIGHT + g.y * TILE + TILE / 2,
-        "ghost"
-      ).setDisplaySize(28, 28)
-    };
-
-    // warna visual
-    if (ghost.type === "blinky") ghost.sprite.setTint(0xff0000);
-    if (ghost.type === "pinky") ghost.sprite.setTint(0xff77ff);
-    if (ghost.type === "inky") ghost.sprite.setTint(0x00ffff);
-    if (ghost.type === "clyde") ghost.sprite.setTint(0xffaa00);
-
-    this.ghosts.push(ghost);
-  });
-}
-  <!====== POLA TARGET PER GHOST =====!>
-getGhostTarget(ghost) {
-  // arah Pac-Man
-  const dx = this.currentDir.x;
-  const dy = this.currentDir.y;
-
-  switch (ghost.type) {
-    // 🔴 kejar langsung
-    case "blinky":
-      return { x: this.tileX, y: this.tileY };
-
-    // 🩷 hadang depan pacman
-    case "pinky":
-      return {
-        x: this.tileX + dx * 3,
-        y: this.tileY + dy * 3
+    this.level.ghosts.forEach(g => {
+      const ghost = {
+        tileX: g.x,
+        tileY: g.y,
+        spawnX: g.x,
+        spawnY: g.y,
+        type: g.type || "blinky",
+        moving: false,
+        sprite: this.add.sprite(
+          g.x * TILE + TILE / 2,
+          HUD_HEIGHT + g.y * TILE + TILE / 2,
+          "ghost"
+        ).setDisplaySize(28, 28)
       };
 
-    // 🔵 random pintar
-    case "inky":
-      return {
-        x: Phaser.Math.Between(1, this.mapWidth - 2),
-        y: Phaser.Math.Between(1, this.mapHeight - 2)
-      };
+      if (ghost.type === "blinky") ghost.sprite.setTint(0xff0000);
+      if (ghost.type === "pinky") ghost.sprite.setTint(0xff77ff);
+      if (ghost.type === "inky") ghost.sprite.setTint(0x00ffff);
+      if (ghost.type === "clyde") ghost.sprite.setTint(0xffaa00);
 
-    // 🟠 dekat kabur
-    case "clyde":
-      const dist =
-        Math.abs(this.tileX - ghost.tileX) +
-        Math.abs(this.tileY - ghost.tileY);
-      if (dist < 4) {
-        return { x: 1, y: this.mapHeight - 2 };
-      }
-      return { x: this.tileX, y: this.tileY };
-
-    default:
-      return { x: this.tileX, y: this.tileY };
+      this.ghosts.push(ghost);
+    });
   }
-}
+
+  /* =====================
+     GHOST TARGET LOGIC
+  ===================== */
+  getGhostTarget(ghost) {
+    if (this.frightened) {
+      return {
+        x: ghost.tileX - this.currentDir.x * 4,
+        y: ghost.tileY - this.currentDir.y * 4
+      };
+    }
+
+    const dx = this.currentDir.x;
+    const dy = this.currentDir.y;
+
+    switch (ghost.type) {
+      case "blinky":
+        return { x: this.tileX, y: this.tileY };
+      case "pinky":
+        return { x: this.tileX + dx * 3, y: this.tileY + dy * 3 };
+      case "inky":
+        return {
+          x: Phaser.Math.Between(1, this.mapWidth - 2),
+          y: Phaser.Math.Between(1, this.mapHeight - 2)
+        };
+      case "clyde":
+        const d = Math.abs(this.tileX - ghost.tileX) + Math.abs(this.tileY - ghost.tileY);
+        return d < 4 ? { x: 1, y: this.mapHeight - 2 } : { x: this.tileX, y: this.tileY };
+      default:
+        return { x: this.tileX, y: this.tileY };
+    }
+  }
 
   /* =====================
      INPUT
@@ -270,13 +259,11 @@ getGhostTarget(ghost) {
       x: tx * TILE + TILE / 2,
       y: HUD_HEIGHT + ty * TILE + TILE / 2,
       duration: MOVE_DURATION,
-      ease: "Linear",
       onComplete: () => {
         this.tileX = tx;
         this.tileY = ty;
         this.moving = false;
 
-        // eat pellet
         const pellet = this.pellets[ty]?.[tx];
         if (pellet) {
           pellet.destroy();
@@ -285,34 +272,34 @@ getGhostTarget(ghost) {
           this.score += pellet.isPower ? 50 : 10;
           this.sfxCollect.play();
 
-          if (pellet.isPower) {
-            this.activatePowerMode();
-          }
-
+          if (pellet.isPower) this.startFrightenedMode();
           this.updateHUD();
         }
 
-        if (this.totalPellets === 0) {
-          this.nextLevel();
-        }
+        if (this.totalPellets === 0) this.nextLevel();
       }
     });
   }
 
   /* =====================
-     POWER MODE
+     FRIGHTENED MODE
   ===================== */
-  activatePowerMode() {
-    this.powerMode = true;
+  startFrightenedMode() {
+    this.frightened = true;
     this.sfxPower.play();
 
-    this.ghosts.forEach(g => {
-      g.sprite.setTint(0x00ffff);
-    });
+    this.ghosts.forEach(g => g.sprite.setTint(0x0000ff));
 
-    this.time.delayedCall(POWER_TIME, () => {
-      this.powerMode = false;
-      this.ghosts.forEach(g => g.sprite.clearTint());
+    if (this.frightenedTimer) this.frightenedTimer.remove(false);
+    this.frightenedTimer = this.time.delayedCall(POWER_TIME, () => {
+      this.frightened = false;
+      this.ghosts.forEach(g => {
+        g.sprite.clearTint();
+        if (g.type === "blinky") g.sprite.setTint(0xff0000);
+        if (g.type === "pinky") g.sprite.setTint(0xff77ff);
+        if (g.type === "inky") g.sprite.setTint(0x00ffff);
+        if (g.type === "clyde") g.sprite.setTint(0xffaa00);
+      });
     });
   }
 
@@ -320,59 +307,57 @@ getGhostTarget(ghost) {
      MOVE GHOSTS
   ===================== */
   moveGhosts() {
-  this.ghosts.forEach(g => {
-    if (g.moving) return;
+    this.ghosts.forEach(g => {
+      if (g.moving) return;
 
-    const target = this.getGhostTarget(g);
-    const dx = target.x - g.tileX;
-    const dy = target.y - g.tileY;
+      const t = this.getGhostTarget(g);
+      const dx = t.x - g.tileX;
+      const dy = t.y - g.tileY;
 
-    let dir =
-      Math.abs(dx) > Math.abs(dy)
+      let dir = Math.abs(dx) > Math.abs(dy)
         ? { x: Math.sign(dx), y: 0 }
         : { x: 0, y: Math.sign(dy) };
 
-    let nx = g.tileX + dir.x;
-    let ny = g.tileY + dir.y;
+      let nx = g.tileX + dir.x;
+      let ny = g.tileY + dir.y;
 
-    if (!this.canMove(nx, ny)) {
-      const dirs = [
-        { x: 1, y: 0 }, { x: -1, y: 0 },
-        { x: 0, y: 1 }, { x: 0, y: -1 }
-      ];
-      Phaser.Utils.Array.Shuffle(dirs);
-      dir = dirs.find(d =>
-        this.canMove(g.tileX + d.x, g.tileY + d.y)
-      );
-      if (!dir) return;
-      nx = g.tileX + dir.x;
-      ny = g.tileY + dir.y;
-    }
-
-    g.moving = true;
-    this.tweens.add({
-      targets: g.sprite,
-      x: nx * TILE + TILE / 2,
-      y: HUD_HEIGHT + ny * TILE + TILE / 2,
-      duration: MOVE_DURATION + 40,
-      onComplete: () => {
-        g.tileX = nx;
-        g.tileY = ny;
-        g.moving = false;
-
-        if (g.tileX === this.tileX && g.tileY === this.tileY) {
-          this.onHitGhost(g);
-        }
+      if (!this.canMove(nx, ny)) {
+        const dirs = [
+          { x: 1, y: 0 }, { x: -1, y: 0 },
+          { x: 0, y: 1 }, { x: 0, y: -1 }
+        ];
+        Phaser.Utils.Array.Shuffle(dirs);
+        dir = dirs.find(d => this.canMove(g.tileX + d.x, g.tileY + d.y));
+        if (!dir) return;
+        nx = g.tileX + dir.x;
+        ny = g.tileY + dir.y;
       }
+
+      g.moving = true;
+      this.tweens.add({
+        targets: g.sprite,
+        x: nx * TILE + TILE / 2,
+        y: HUD_HEIGHT + ny * TILE + TILE / 2,
+        duration: this.frightened ? MOVE_DURATION + 160 : MOVE_DURATION + 40,
+        onComplete: () => {
+          g.tileX = nx;
+          g.tileY = ny;
+          g.moving = false;
+          if (g.tileX === this.tileX && g.tileY === this.tileY) {
+            this.onHitGhost(g);
+          }
+        }
+      });
     });
-  });
-}
+  }
 
   /* =====================
      HIT GHOST
   ===================== */
   onHitGhost(ghost) {
-    if (this.powerMode) {
+    if (this.frightened) {
+      ghost.tileX = ghost.spawnX;
+      ghost.tileY = ghost.spawnY;
       ghost.sprite.setPosition(
         ghost.tileX * TILE + TILE / 2,
         HUD_HEIGHT + ghost.tileY * TILE + TILE / 2
@@ -382,7 +367,6 @@ getGhostTarget(ghost) {
     } else {
       this.lives--;
       this.updateHUD();
-
       if (this.lives <= 0) {
         this.scene.start("MenuScene");
       } else {
