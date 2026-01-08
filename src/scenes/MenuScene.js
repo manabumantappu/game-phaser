@@ -22,19 +22,19 @@ export default class MenuScene extends Phaser.Scene {
     ====================== */
     this.add.text(
       width / 2,
-      height * 0.3,
-      "PUZZLE\nMAZE",
+      height * 0.28,
+      "MAZE\nPUZZLE",
       {
-        fontSize: "40px",
+        fontSize: "42px",
         color: "#ffffff",
-        align: "center",
-        fontStyle: "bold"
+        fontStyle: "bold",
+        align: "center"
       }
     ).setOrigin(0.5);
 
     this.add.text(
       width / 2,
-      height * 0.42,
+      height * 0.4,
       "Mobile Puzzle Game",
       {
         fontSize: "14px",
@@ -43,57 +43,38 @@ export default class MenuScene extends Phaser.Scene {
     ).setOrigin(0.5);
 
     /* ======================
-       START BUTTON
+       BUTTONS
     ====================== */
-    const btnWidth = width * 0.6;
-    const btnHeight = 56;
-
-    const startBtn = this.add.rectangle(
+    this.createButton(
       width / 2,
-      height * 0.6,
-      btnWidth,
-      btnHeight,
-      0x00bfa5,
-      1
-    )
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    const startText = this.add.text(
-      width / 2,
-      height * 0.6,
+      height * 0.55,
       "START",
-      {
-        fontSize: "20px",
-        color: "#000000",
-        fontStyle: "bold"
+      () => {
+        this.sound.play("click", { volume: 0.6 });
+        this.scene.start("GameScene", {
+          level: 1,
+          score: 0
+        });
       }
-    ).setOrigin(0.5);
+    );
 
-    /* ======================
-       BUTTON FEEDBACK
-    ====================== */
-    startBtn.on("pointerdown", () => {
-      startBtn.setScale(0.95);
-      if (navigator.vibrate) navigator.vibrate(30);
-    });
-
-    startBtn.on("pointerup", () => {
-      startBtn.setScale(1);
-      this.startGame();
-    });
-
-    startBtn.on("pointerout", () => {
-      startBtn.setScale(1);
-    });
+    this.createButton(
+      width / 2,
+      height * 0.65,
+      "LEVEL SELECT",
+      () => {
+        this.sound.play("click", { volume: 0.6 });
+        this.scene.start("LevelSelectScene");
+      }
+    );
 
     /* ======================
        FOOTER
     ====================== */
     this.add.text(
       width / 2,
-      height - 40,
-      "Tap START to play",
+      height - 30,
+      "Tap buttons to play",
       {
         fontSize: "12px",
         color: "#777777"
@@ -101,10 +82,45 @@ export default class MenuScene extends Phaser.Scene {
     ).setOrigin(0.5);
   }
 
-  startGame() {
-    this.scene.start("GameScene", {
-      level: 0,
-      score: 0
+  /* ======================
+     BUTTON COMPONENT
+  ====================== */
+  createButton(x, y, label, onClick) {
+    const btnWidth = 220;
+    const btnHeight = 54;
+
+    const button = this.add.rectangle(
+      x,
+      y,
+      btnWidth,
+      btnHeight,
+      0x00bfa5
+    ).setInteractive({ useHandCursor: true });
+
+    const text = this.add.text(
+      x,
+      y,
+      label,
+      {
+        fontSize: "18px",
+        color: "#000000",
+        fontStyle: "bold"
+      }
+    ).setOrigin(0.5);
+
+    // Visual feedback
+    button.on("pointerdown", () => {
+      button.setScale(0.95);
+      if (navigator.vibrate) navigator.vibrate(20);
+    });
+
+    button.on("pointerup", () => {
+      button.setScale(1);
+      onClick();
+    });
+
+    button.on("pointerout", () => {
+      button.setScale(1);
     });
   }
 }
