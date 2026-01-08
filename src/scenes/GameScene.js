@@ -10,21 +10,112 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     /* ======================
-       MAZE DEFINITIONS
+       MAZE LEVELS (SOLVABLE)
+       P = Player
+       T = Target
+       # = Wall
+       . = Path
     ====================== */
     this.mazes = [
+      // LEVEL 1 (Tutorial)
+      [
+        "##########",
+        "#P.......#",
+        "#.######.#",
+        "#....T...#",
+        "#.######.#",
+        "#........#",
+        "#.######.#",
+        "#....T...#",
+        "#........#",
+        "##########"
+      ],
+
+      // LEVEL 2
+      [
+        "##########",
+        "#P.#....T#",
+        "#.#.####.#",
+        "#.#....#.#",
+        "#.##.##.#.#",
+        "#....#...#",
+        "####.#.#.#",
+        "#T...#...#",
+        "#.#####..#",
+        "##########"
+      ],
+
+      // LEVEL 3
+      [
+        "##########",
+        "#P.......#",
+        "#.######.#",
+        "#.#....#.#",
+        "#.#.##.#.#",
+        "#.#.T..#.#",
+        "#.#.##.#.#",
+        "#.#....#T#",
+        "#........#",
+        "##########"
+      ],
+
+      // LEVEL 4
+      [
+        "##########",
+        "#P.#....T#",
+        "#.#.##.#.#",
+        "#.#....#.#",
+        "#.####.#.#",
+        "#......#.#",
+        "#.######.#",
+        "#T.......#",
+        "#........#",
+        "##########"
+      ],
+
+      // LEVEL 5
+      [
+        "##########",
+        "#P.......#",
+        "#.######.#",
+        "#....#...#",
+        "####.#.#.#",
+        "#T...#.#.#",
+        "#.###.#.#.#",
+        "#.....#..#",
+        "#..T......#",
+        "##########"
+      ],
+
+      // LEVEL 6
       [
         "##########",
         "#P....T..#",
-        "#.####.#.#",
-        "#....#.#.#",
-        "#.##.#.#.#",
-        "#.#..#...#",
-        "#.#.####.#",
-        "#...#..T.#",
-        "#.###.##.#",
+        "#.######.#",
+        "#.#....#.#",
+        "#.#.##.#.#",
+        "#...##....#",
+        "####.######",
+        "#T........#",
+        "#........#",
         "##########"
       ],
+
+      // LEVEL 7
+      [
+        "##########",
+        "#P.......#",
+        "#.######.#",
+        "#.#....#.#",
+        "#.#.##.#.#",
+        "#.#.##.#.#",
+        "#.#....#T#",
+        "#.######.#",
+        "#....T...#",
+        "##########"
+      ],
+
+      // LEVEL 8
       [
         "##########",
         "#P.#....T#",
@@ -32,9 +123,37 @@ export default class GameScene extends Phaser.Scene {
         "#.#......#",
         "#.######.#",
         "#....#...#",
+        "#.##.#.##.#",
+        "#T...#....#",
+        "#......T.#",
+        "##########"
+      ],
+
+      // LEVEL 9
+      [
+        "##########",
+        "#P.......#",
+        "#.######.#",
+        "#....#...#",
+        "#.##.#.#.#",
+        "#T..#.#.#.#",
         "####.#.#.#",
-        "#T...#.#.#",
-        "#.#####..#",
+        "#.....#..#",
+        "#..T......#",
+        "##########"
+      ],
+
+      // LEVEL 10 (Hard)
+      [
+        "##########",
+        "#P.#....T#",
+        "#.#.####.#",
+        "#.#....#.#",
+        "#.##.##.#.#",
+        "#....#...#",
+        "#.#######.#",
+        "#T........#",
+        "#......T.#",
         "##########"
       ]
     ];
@@ -48,7 +167,7 @@ export default class GameScene extends Phaser.Scene {
     this.createTimer();
     this.createJoystick();
 
-    // Tutorial hanya di level 1 & mobile
+    // Tutorial hanya level 1 & mobile
     if (this.level === 0 && this.sys.game.device.input.touch) {
       this.showTutorial();
     }
@@ -75,10 +194,8 @@ export default class GameScene extends Phaser.Scene {
 
         if (cell === "P") {
           this.player = this.add.rectangle(
-            px,
-            py,
-            tile * 0.6,
-            tile * 0.6,
+            px, py,
+            tile * 0.6, tile * 0.6,
             0x00aaff
           );
           this.physics.add.existing(this.player);
@@ -87,10 +204,8 @@ export default class GameScene extends Phaser.Scene {
 
         if (cell === "T") {
           const target = this.add.rectangle(
-            px,
-            py,
-            tile * 0.5,
-            tile * 0.5,
+            px, py,
+            tile * 0.5, tile * 0.5,
             0xffcc00
           );
           this.physics.add.existing(target);
@@ -100,7 +215,6 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.targetsLeft = this.targets.getChildren().length;
-
     this.physics.add.collider(this.player, this.walls);
     this.physics.add.overlap(
       this.player,
@@ -115,7 +229,8 @@ export default class GameScene extends Phaser.Scene {
      UI
   ====================== */
   createUI() {
-    this.timeLeft = 40;
+    this.timeLeft = Math.max(20, 50 - this.level * 2);
+
     this.uiText = this.add.text(10, 10, "", {
       color: "#ffffff",
       fontSize: "14px"
@@ -161,7 +276,7 @@ export default class GameScene extends Phaser.Scene {
     this.targetsLeft--;
     this.score += 10;
 
-    if (navigator.vibrate) navigator.vibrate(40);
+    if (navigator.vibrate) navigator.vibrate(30);
 
     this.updateUI();
 
@@ -183,7 +298,7 @@ export default class GameScene extends Phaser.Scene {
     const body = this.player.body;
     body.setVelocity(0);
 
-    // Keyboard (PC)
+    // Keyboard
     if (this.cursors.left.isDown || this.keys.A.isDown)
       body.setVelocityX(-speed);
     if (this.cursors.right.isDown || this.keys.D.isDown)
@@ -193,7 +308,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.cursors.down.isDown || this.keys.S.isDown)
       body.setVelocityY(speed);
 
-    // Joystick analog (HP)
+    // Joystick
     if (this.joyActive) {
       body.setVelocity(
         this.joyVector.x * speed,
@@ -203,7 +318,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /* ======================
-     ANALOG JOYSTICK (FIXED)
+     ANALOG JOYSTICK
   ====================== */
   createJoystick() {
     this.joyActive = false;
@@ -211,23 +326,13 @@ export default class GameScene extends Phaser.Scene {
 
     const { height } = this.scale;
 
-    // Base joystick (SELALU TERLIHAT)
-    this.joyBase = this.add.circle(
-      90,
-      height - 110,
-      40,
-      0xffffff,
-      0.25
-    ).setScrollFactor(0).setDepth(2000);
+    this.joyBase = this.add.circle(90, height - 110, 40, 0xffffff, 0.25)
+      .setScrollFactor(0)
+      .setDepth(2000);
 
-    // Thumb joystick
-    this.joyThumb = this.add.circle(
-      90,
-      height - 110,
-      20,
-      0xffffff,
-      0.6
-    ).setScrollFactor(0).setDepth(2001);
+    this.joyThumb = this.add.circle(90, height - 110, 20, 0xffffff, 0.6)
+      .setScrollFactor(0)
+      .setDepth(2001);
 
     this.input.on("pointerdown", p => {
       this.joyActive = true;
@@ -277,7 +382,7 @@ export default class GameScene extends Phaser.Scene {
     const text = this.add.text(
       width / 2,
       height / 2,
-      "Use the joystick to move\nCollect all yellow squares\nFinish before time runs out",
+      "Use joystick to move\nCollect all yellow squares\nFinish before time runs out",
       {
         color: "#ffffff",
         align: "center",
