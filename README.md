@@ -23,3 +23,8 @@ Because ES6 modules are used, you need a local server.
 ### Option 2: Python
 ```bash
 python -m http.server
+
+## 📱 Mobile Support
+- Swipe → Move player
+- Tap → Start / Restart
+- Fully responsive
