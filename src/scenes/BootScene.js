@@ -9,6 +9,8 @@ export default class BootScene extends Phaser.Scene {
     this.load.audio("click", "assets/audio/click.wav");
     this.load.audio("collect", "assets/audio/collect.wav");
     this.load.audio("levelclear", "assets/audio/levelclear.wav");
+    this.load.audio("frightened", "assets/audio/frightened.mp3");
+
 
     // IMAGE (SATU PACMAN)
     this.load.image("pacman", "assets/sprites/pacman.png");
