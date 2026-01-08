@@ -16,6 +16,7 @@ export default class GameScene extends Phaser.Scene {
     ====================== */
     this.targetsLeft = this.level + 2;
     this.timeLeft = Math.max(10, 30 - this.level * 2);
+    this.obstacleCount = Math.min(this.level + 1, 8);
 
     /* ======================
        PLAYER
@@ -23,6 +24,24 @@ export default class GameScene extends Phaser.Scene {
     this.player = this.add.rectangle(width / 2, height / 2, 32, 32, 0x00aaff);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
+
+    /* ======================
+       OBSTACLES
+    ====================== */
+    this.obstacles = this.physics.add.staticGroup();
+
+    for (let i = 0; i < this.obstacleCount; i++) {
+      const block = this.add.rectangle(
+        Phaser.Math.Between(60, width - 60),
+        Phaser.Math.Between(120, height - 60),
+        40,
+        40,
+        0xff4444
+      );
+      this.obstacles.add(block);
+    }
+
+    this.physics.add.collider(this.player, this.obstacles);
 
     /* ======================
        TARGET
@@ -39,7 +58,7 @@ export default class GameScene extends Phaser.Scene {
     this.updateUI();
 
     /* ======================
-       INPUT (KEYBOARD)
+       INPUT
     ====================== */
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keys = this.input.keyboard.addKeys("W,A,S,D");
@@ -69,16 +88,17 @@ export default class GameScene extends Phaser.Scene {
     });
 
     /* ======================
-       MOBILE VIRTUAL BUTTON
+       MOBILE CONTROL
     ====================== */
     this.createVirtualPad();
   }
 
   spawnTarget() {
     const { width, height } = this.scale;
+
     this.target = this.add.rectangle(
       Phaser.Math.Between(40, width - 40),
-      Phaser.Math.Between(80, height - 40),
+      Phaser.Math.Between(100, height - 40),
       24,
       24,
       0xffcc00
@@ -117,7 +137,6 @@ export default class GameScene extends Phaser.Scene {
     const body = this.player.body;
     body.setVelocity(0);
 
-    /* KEYBOARD */
     if (this.cursors.left.isDown || this.keys.A.isDown || this.moveLeft)
       body.setVelocityX(-speed);
     if (this.cursors.right.isDown || this.keys.D.isDown || this.moveRight)
