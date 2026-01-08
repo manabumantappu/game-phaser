@@ -37,37 +37,74 @@ export default class GameScene extends Phaser.Scene {
      PERFECT MAZE (DFS)
      0 = PATH, 1 = WALL
   ====================== */
-  generateMaze() {
-    this.grid = Array.from({ length: this.rows }, () =>
-      Array(this.cols).fill(1)
-    );
+ generateMaze() {
+  this.grid = Array.from({ length: this.rows }, () =>
+    Array(this.cols).fill(1)
+  );
 
-    const carve = (x, y) => {
-      this.grid[y][x] = 0;
+  /* ======================
+     STEP 1: PERFECT MAZE (DFS)
+  ====================== */
+  const carve = (x, y) => {
+    this.grid[y][x] = 0;
 
-      const dirs = Phaser.Utils.Array.Shuffle([
-        [2, 0], [-2, 0], [0, 2], [0, -2]
-      ]);
+    const dirs = Phaser.Utils.Array.Shuffle([
+      [2, 0], [-2, 0], [0, 2], [0, -2]
+    ]);
 
-      for (const [dx, dy] of dirs) {
-        const nx = x + dx;
-        const ny = y + dy;
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
 
-        if (
-          nx > 0 && ny > 0 &&
-          nx < this.cols - 1 &&
-          ny < this.rows - 1 &&
-          this.grid[ny][nx] === 1
-        ) {
-          this.grid[y + dy / 2][x + dx / 2] = 0;
-          carve(nx, ny);
+      if (
+        nx > 0 && ny > 0 &&
+        nx < this.cols - 1 &&
+        ny < this.rows - 1 &&
+        this.grid[ny][nx] === 1
+      ) {
+        this.grid[y + dy / 2][x + dx / 2] = 0;
+        carve(nx, ny);
+      }
+    }
+  };
+
+  carve(1, 1);
+
+  /* ======================
+     STEP 2: REMOVE SOME DEAD ENDS (BRAID)
+  ====================== */
+  const isDeadEnd = (x, y) => {
+    if (this.grid[y][x] !== 0) return false;
+    let exits = 0;
+    if (this.grid[y - 1]?.[x] === 0) exits++;
+    if (this.grid[y + 1]?.[x] === 0) exits++;
+    if (this.grid[y]?.[x - 1] === 0) exits++;
+    if (this.grid[y]?.[x + 1] === 0) exits++;
+    return exits === 1;
+  };
+
+  for (let y = 1; y < this.rows - 1; y++) {
+    for (let x = 1; x < this.cols - 1; x++) {
+      if (isDeadEnd(x, y) && Math.random() < 0.6) {
+        const neighbors = Phaser.Utils.Array.Shuffle([
+          [0, -1], [0, 1], [-1, 0], [1, 0]
+        ]);
+
+        for (const [dx, dy] of neighbors) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (this.grid[ny][nx] === 1) {
+            this.grid[ny][nx] = 0;
+            break;
+          }
         }
       }
-    };
-
-    carve(1, 1);
-    this.drawMaze();
+    }
   }
+
+  this.drawMaze();
+}
+
 
   drawMaze() {
     const t = this.tileSize;
