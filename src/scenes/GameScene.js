@@ -3,7 +3,7 @@ import VirtualJoystick from "../ui/VirtualJoystick.js";
 
 const TILE = 32;
 const HUD_HEIGHT = 80;
-const MOVE_DURATION = 220;
+const MOVE_DURATION = 280;
 const POWER_TIME = 6000;
 
 export default class GameScene extends Phaser.Scene {
