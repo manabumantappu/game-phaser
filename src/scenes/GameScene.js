@@ -2,6 +2,7 @@ import { LEVELS } from "../data/levels.js";
 import VirtualJoystick from "../ui/VirtualJoystick.js";
 
 const TILE = 32;
+const HUD_HEIGHT = 56; // area khusus HUD
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -109,7 +110,7 @@ export default class GameScene extends Phaser.Scene {
     this.level.map.forEach((row, y) => {
       [...row].forEach((cell, x) => {
         const px = x * TILE + TILE / 2;
-        const py = y * TILE + TILE / 2;
+        const py = HUD_HEIGHT + y * TILE + TILE / 2;
 
         if (cell === "1") {
           const wall = this.walls.create(px, py, "wall");
@@ -135,7 +136,7 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   createPlayer() {
     const px = this.level.player.x * TILE + 16;
-    const py = this.level.player.y * TILE + 16;
+    const py = HUD_HEIGHT + this.level.player.y * TILE + 16;
 
     this.player = this.physics.add.sprite(px, py, "pacman");
     this.player.setDisplaySize(28, 28);
@@ -176,7 +177,7 @@ export default class GameScene extends Phaser.Scene {
     this.level.ghosts.forEach(g => {
       const ghost = this.ghosts.create(
         g.x * TILE + 16,
-        g.y * TILE + 16,
+       HUD_HEIGHT + g.y * TILE + 16,
         "ghost"
       );
       ghost.setDisplaySize(28, 28);
