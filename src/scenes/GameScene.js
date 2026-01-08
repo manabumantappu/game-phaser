@@ -159,21 +159,70 @@ export default class GameScene extends Phaser.Scene {
   /* =====================
      GHOST
   ===================== */
-  createGhosts() {
-    this.level.ghosts.forEach(g => {
-      const ghost = {
-        tileX: g.x,
-        tileY: g.y,
-        moving: false,
-        sprite: this.add.sprite(
-          g.x * TILE + TILE / 2,
-          HUD_HEIGHT + g.y * TILE + TILE / 2,
-          "ghost"
-        ).setDisplaySize(28, 28)
+ createGhosts() {
+  this.ghosts = [];
+
+  this.level.ghosts.forEach(g => {
+    const ghost = {
+      tileX: g.x,
+      tileY: g.y,
+      type: g.type || "blinky",
+      moving: false,
+      sprite: this.add.sprite(
+        g.x * TILE + TILE / 2,
+        HUD_HEIGHT + g.y * TILE + TILE / 2,
+        "ghost"
+      ).setDisplaySize(28, 28)
+    };
+
+    // warna visual
+    if (ghost.type === "blinky") ghost.sprite.setTint(0xff0000);
+    if (ghost.type === "pinky") ghost.sprite.setTint(0xff77ff);
+    if (ghost.type === "inky") ghost.sprite.setTint(0x00ffff);
+    if (ghost.type === "clyde") ghost.sprite.setTint(0xffaa00);
+
+    this.ghosts.push(ghost);
+  });
+}
+  <!====== POLA TARGET PER GHOST =====!>
+getGhostTarget(ghost) {
+  // arah Pac-Man
+  const dx = this.currentDir.x;
+  const dy = this.currentDir.y;
+
+  switch (ghost.type) {
+    // 🔴 kejar langsung
+    case "blinky":
+      return { x: this.tileX, y: this.tileY };
+
+    // 🩷 hadang depan pacman
+    case "pinky":
+      return {
+        x: this.tileX + dx * 3,
+        y: this.tileY + dy * 3
       };
-      this.ghosts.push(ghost);
-    });
+
+    // 🔵 random pintar
+    case "inky":
+      return {
+        x: Phaser.Math.Between(1, this.mapWidth - 2),
+        y: Phaser.Math.Between(1, this.mapHeight - 2)
+      };
+
+    // 🟠 dekat kabur
+    case "clyde":
+      const dist =
+        Math.abs(this.tileX - ghost.tileX) +
+        Math.abs(this.tileY - ghost.tileY);
+      if (dist < 4) {
+        return { x: 1, y: this.mapHeight - 2 };
+      }
+      return { x: this.tileX, y: this.tileY };
+
+    default:
+      return { x: this.tileX, y: this.tileY };
   }
+}
 
   /* =====================
      INPUT
@@ -271,50 +320,53 @@ export default class GameScene extends Phaser.Scene {
      MOVE GHOSTS
   ===================== */
   moveGhosts() {
-    this.ghosts.forEach(g => {
-      if (g.moving) return;
+  this.ghosts.forEach(g => {
+    if (g.moving) return;
 
-      const dx = this.tileX - g.tileX;
-      const dy = this.tileY - g.tileY;
+    const target = this.getGhostTarget(g);
+    const dx = target.x - g.tileX;
+    const dy = target.y - g.tileY;
 
-      let dir =
-        Math.abs(dx) > Math.abs(dy)
-          ? { x: Math.sign(dx), y: 0 }
-          : { x: 0, y: Math.sign(dy) };
+    let dir =
+      Math.abs(dx) > Math.abs(dy)
+        ? { x: Math.sign(dx), y: 0 }
+        : { x: 0, y: Math.sign(dy) };
 
-      let nx = g.tileX + dir.x;
-      let ny = g.tileY + dir.y;
+    let nx = g.tileX + dir.x;
+    let ny = g.tileY + dir.y;
 
-      if (!this.canMove(nx, ny)) {
-        const dirs = [
-          { x: 1, y: 0 }, { x: -1, y: 0 },
-          { x: 0, y: 1 }, { x: 0, y: -1 }
-        ];
-        Phaser.Utils.Array.Shuffle(dirs);
-        dir = dirs.find(d => this.canMove(g.tileX + d.x, g.tileY + d.y));
-        if (!dir) return;
-        nx = g.tileX + dir.x;
-        ny = g.tileY + dir.y;
-      }
+    if (!this.canMove(nx, ny)) {
+      const dirs = [
+        { x: 1, y: 0 }, { x: -1, y: 0 },
+        { x: 0, y: 1 }, { x: 0, y: -1 }
+      ];
+      Phaser.Utils.Array.Shuffle(dirs);
+      dir = dirs.find(d =>
+        this.canMove(g.tileX + d.x, g.tileY + d.y)
+      );
+      if (!dir) return;
+      nx = g.tileX + dir.x;
+      ny = g.tileY + dir.y;
+    }
 
-      g.moving = true;
-      this.tweens.add({
-        targets: g.sprite,
-        x: nx * TILE + TILE / 2,
-        y: HUD_HEIGHT + ny * TILE + TILE / 2,
-        duration: MOVE_DURATION + 40,
-        onComplete: () => {
-          g.tileX = nx;
-          g.tileY = ny;
-          g.moving = false;
+    g.moving = true;
+    this.tweens.add({
+      targets: g.sprite,
+      x: nx * TILE + TILE / 2,
+      y: HUD_HEIGHT + ny * TILE + TILE / 2,
+      duration: MOVE_DURATION + 40,
+      onComplete: () => {
+        g.tileX = nx;
+        g.tileY = ny;
+        g.moving = false;
 
-          if (g.tileX === this.tileX && g.tileY === this.tileY) {
-            this.onHitGhost(g);
-          }
+        if (g.tileX === this.tileX && g.tileY === this.tileY) {
+          this.onHitGhost(g);
         }
-      });
+      }
     });
-  }
+  });
+}
 
   /* =====================
      HIT GHOST
