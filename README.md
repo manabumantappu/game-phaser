@@ -28,3 +28,10 @@ python -m http.server
 - Swipe → Move player
 - Tap → Start / Restart
 - Fully responsive
+## How to Play
+- Move the blue square using Arrow Keys / WASD or on-screen buttons
+- Collect all yellow targets before time runs out
+- Each target gives +10 points
+- Clear all targets to advance to the next level
+- Game ends when time reaches zero
+
