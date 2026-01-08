@@ -51,12 +51,11 @@ export default class MenuScene extends Phaser.Scene {
       "START",
       () => {
         this.unlockAudio();
-        this.safePlayClick();
-        this.scene.start("GameScene", {
-          level: 1,
-          score: 0
-        });
-      }
+this.sound.play("click", { volume: 0.7 });
+
+this.scene.start("GameScene", { level: 0 });
+       
+       }
     );
 
        /* ======================
@@ -77,10 +76,10 @@ export default class MenuScene extends Phaser.Scene {
      AUDIO SAFE FUNCTIONS
   ====================== */
   unlockAudio() {
-    if (this.sound && this.sound.context && this.sound.context.state === "suspended") {
-      this.sound.unlock();
-    }
+  if (this.sound.context && this.sound.context.state === "suspended") {
+    this.sound.unlock();
   }
+}
 
   safePlayClick() {
     if (this.sound && this.sound.get("click")) {
