@@ -315,16 +315,34 @@ export default class GameScene extends Phaser.Scene {
     return this.level.map[y][x] !== "1";
   }
 
-  update() {
-    this.readInput();
+ update() {
+  this.readInput();
 
-    if (!this.moving) {
-      if (this.canMove(this.tileX + this.nextDir.x, this.tileY + this.nextDir.y)) {
-        this.startMove(this.nextDir);
-      } else if (this.canMove(this.tileX + this.currentDir.x, this.tileY + this.currentDir.y)) {
-        this.startMove(this.currentDir);
-      }
+  if (!this.moving) {
+
+    // 🚀 START GERAK PERTAMA KALI
+    if (
+      this.currentDir.x === 0 &&
+      this.currentDir.y === 0 &&
+      (this.nextDir.x !== 0 || this.nextDir.y !== 0) &&
+      this.canMove(this.tileX + this.nextDir.x, this.tileY + this.nextDir.y)
+    ) {
+      this.startMove(this.nextDir);
+      return;
     }
+
+    // belok normal
+    if (this.canMove(this.tileX + this.nextDir.x, this.tileY + this.nextDir.y)) {
+      this.startMove(this.nextDir);
+    }
+    else if (this.canMove(this.tileX + this.currentDir.x, this.tileY + this.currentDir.y)) {
+      this.startMove(this.currentDir);
+    }
+  }
+
+  this.moveGhosts();
+}
+
 
     this.moveGhosts();
   }
@@ -382,7 +400,23 @@ export default class GameScene extends Phaser.Scene {
       let nx = g.tileX + dir.x;
       let ny = g.tileY + dir.y;
 
-      if (!this.canMove(nx, ny)) return;
+     if (!this.canMove(nx, ny)) {
+  const dirs = [
+    { x: 1, y: 0 }, { x: -1, y: 0 },
+    { x: 0, y: 1 }, { x: 0, y: -1 }
+  ];
+  Phaser.Utils.Array.Shuffle(dirs);
+
+  const alt = dirs.find(d =>
+    this.canMove(g.tileX + d.x, g.tileY + d.y)
+  );
+
+  if (!alt) return;
+
+  nx = g.tileX + alt.x;
+  ny = g.tileY + alt.y;
+}
+
 
       g.moving = true;
       this.tweens.add({
