@@ -28,9 +28,10 @@ const config = {
 
   scene: [
     BootScene,
-    MenuScene,
-    GameScene,
-    GameOverScene
+  MenuScene,
+  LevelSelectScene, // ← WAJIB ADA
+  GameScene,
+  GameOverScene
   ]
 };
 
