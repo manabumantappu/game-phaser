@@ -8,17 +8,30 @@ const config = {
   width: 480,
   height: 640,
   backgroundColor: "#1e1e1e",
+
+  // ✅ WAJIB untuk touch / joystick Android
+  input: {
+    activePointers: 3
+  },
+
   physics: {
     default: "arcade",
     arcade: {
       debug: false
     }
   },
+
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH
   },
-  scene: [BootScene, MenuScene, GameScene, GameOverScene]
+
+  scene: [
+    BootScene,
+    MenuScene,
+    GameScene,
+    GameOverScene
+  ]
 };
 
 new Phaser.Game(config);
