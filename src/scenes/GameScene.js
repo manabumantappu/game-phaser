@@ -2,43 +2,42 @@ import { LEVELS } from "../data/levels.js";
 import VirtualJoystick from "../ui/VirtualJoystick.js";
 
 const TILE = 32;
-const HUD_HEIGHT = 56; // area khusus HUD
+const HUD_HEIGHT = 56;
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: "GameScene" });
   }
 
+  /* =====================
+     INIT
+  ===================== */
   init(data) {
     this.levelIndex = data.level ?? 0;
     this.score = data.score ?? 0;
     this.powerMode = false;
     this.levelCleared = false;
+
+    // movement (grid based)
     this.currentDir = { x: 0, y: 0 };
     this.nextDir = { x: 0, y: 0 };
-    
-    // 🔊 AUDIO STATE
-  this.isMuted = data.muted ?? false;
   }
 
+  /* =====================
+     CREATE
+  ===================== */
   create() {
     this.level = LEVELS[this.levelIndex];
 
     this.cursors = this.input.keyboard.createCursorKeys();
     this.joystick = new VirtualJoystick(this);
 
-    /* =====================
-       AUDIO
-    ===================== */
+    // AUDIO
     this.sfxCollect = this.sound.add("collect", { volume: 0.8 });
-    this.sfxClick = this.sound.add("click", { volume: 0.6 });
     this.sfxLevelClear = this.sound.add("levelclear", { volume: 0.9 });
 
     if (!this.sound.get("bgm")) {
-      this.bgm = this.sound.add("bgm", {
-        loop: true,
-        volume: 0.4
-      });
+      this.bgm = this.sound.add("bgm", { loop: true, volume: 0.4 });
       this.bgm.play();
     }
 
@@ -52,54 +51,40 @@ export default class GameScene extends Phaser.Scene {
      HUD
   ===================== */
   createHUD() {
-  const padding = 10;
+    this.hudBg = this.add.rectangle(
+      this.scale.width / 2,
+      24,
+      this.scale.width,
+      48,
+      0x000000,
+      0.5
+    ).setScrollFactor(0).setDepth(20);
 
-  // Background HUD (semi transparan)
-  this.hudBg = this.add.rectangle(
-    this.scale.width / 2,
-    24,
-    this.scale.width,
-    48,
-    0x000000,
-    0.5
-  )
-  .setOrigin(0.5)
-  .setScrollFactor(0)
-  .setDepth(20);
+    this.hudScore = this.add.text(
+      10,
+      8,
+      `🟡 ${this.score}`,
+      {
+        fontSize: "20px",
+        fontStyle: "bold",
+        color: "#ffff00"
+      }
+    ).setScrollFactor(0).setDepth(21);
 
-  // SCORE
-  this.hudScore = this.add.text(
-    padding,
-    8,
-    `🟡 ${this.score}`,
-    {
-      fontSize: "20px",
-      fontStyle: "bold",
-      color: "#ffff00"
-    }
-  )
-  .setScrollFactor(0)
-  .setDepth(21);
-
-  // LEVEL
-  this.hudLevel = this.add.text(
-    this.scale.width - padding,
-    8,
-    `👻 L${this.levelIndex + 1}`,
-    {
-      fontSize: "20px",
-      fontStyle: "bold",
-      color: "#ffffff"
-    }
-  )
-  .setOrigin(1, 0)
-  .setScrollFactor(0)
-  .setDepth(21);
-}
+    this.hudLevel = this.add.text(
+      this.scale.width - 10,
+      8,
+      `👻 L${this.levelIndex + 1}`,
+      {
+        fontSize: "20px",
+        color: "#ffffff"
+      }
+    ).setOrigin(1, 0).setScrollFactor(0).setDepth(21);
+  }
 
   updateHUD() {
-  this.hudScore.setText(`🟡 ${this.score}`);
-}
+    this.hudScore.setText(`🟡 ${this.score}`);
+  }
 
   /* =====================
      MAP
@@ -121,13 +106,11 @@ export default class GameScene extends Phaser.Scene {
         }
 
         if (cell === "0") {
-          const p = this.pellets.create(px, py, "pellet");
-          p.setDisplaySize(8, 8);
+          this.pellets.create(px, py, "pellet").setDisplaySize(8, 8);
         }
 
         if (cell === "2") {
-          const p = this.powerPellets.create(px, py, "power");
-          p.setDisplaySize(14, 14);
+          this.powerPellets.create(px, py, "power").setDisplaySize(14, 14);
         }
       });
     });
@@ -146,7 +129,6 @@ export default class GameScene extends Phaser.Scene {
 
     this.physics.add.collider(this.player, this.walls);
 
-    // Pellet
     this.physics.add.overlap(this.player, this.pellets, (_, p) => {
       p.destroy();
       this.score += 10;
@@ -155,7 +137,6 @@ export default class GameScene extends Phaser.Scene {
       this.checkWin();
     });
 
-    // Power pellet
     this.physics.add.overlap(this.player, this.powerPellets, (_, p) => {
       p.destroy();
       this.score += 50;
@@ -179,7 +160,7 @@ export default class GameScene extends Phaser.Scene {
     this.level.ghosts.forEach(g => {
       const ghost = this.ghosts.create(
         g.x * TILE + 16,
-       HUD_HEIGHT + g.y * TILE + 16,
+        HUD_HEIGHT + g.y * TILE + 16,
         "ghost"
       );
       ghost.setDisplaySize(28, 28);
@@ -202,55 +183,51 @@ export default class GameScene extends Phaser.Scene {
           score: this.score
         });
       }
-       });
-}
-     /* =====================
-   MOVEMENT HELPERS
-===================== */
-setDirection(dir) {
-  this.currentDir = dir;
-  const speed = 140;
-  this.player.setVelocity(
-    dir.x * speed,
-    dir.y * speed
-  );
-}
-
-isNearCenter(sprite) {
-  const tx = Math.round(sprite.x / TILE) * TILE;
-  const ty =
-    Math.round((sprite.y - HUD_HEIGHT) / TILE) * TILE + HUD_HEIGHT;
-
-  return (
-    Math.abs(sprite.x - tx) < 4 &&
-    Math.abs(sprite.y - ty) < 4
-  );
-}
-
-canMove(dir) {
-  const testX = this.player.x + dir.x * TILE;
-  const testY = this.player.y + dir.y * TILE;
-
-  for (let w of this.walls.getChildren()) {
-    if (
-      Phaser.Geom.Intersects.RectangleToRectangle(
-        new Phaser.Geom.Rectangle(
-          testX - 14,
-          testY - 14,
-          28,
-          28
-        ),
-        w.getBounds()
-      )
-    ) {
-      return false;
-    }
+    });
   }
-  return true;
-}
 
   /* =====================
-     WIN CHECK
+     MOVEMENT HELPERS
+  ===================== */
+  setDirection(dir) {
+    this.currentDir = dir;
+  }
+
+  isNearCenter(sprite) {
+    const tx = Math.round(sprite.x / TILE) * TILE;
+    const ty =
+      Math.round((sprite.y - HUD_HEIGHT) / TILE) * TILE + HUD_HEIGHT;
+
+    return (
+      Math.abs(sprite.x - tx) < 4 &&
+      Math.abs(sprite.y - ty) < 4
+    );
+  }
+
+  canMove(dir) {
+    const testX = this.player.x + dir.x * TILE;
+    const testY = this.player.y + dir.y * TILE;
+
+    for (let w of this.walls.getChildren()) {
+      if (
+        Phaser.Geom.Intersects.RectangleToRectangle(
+          new Phaser.Geom.Rectangle(
+            testX - 14,
+            testY - 14,
+            28,
+            28
+          ),
+          w.getBounds()
+        )
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /* =====================
+     WIN
   ===================== */
   checkWin() {
     if (
@@ -263,19 +240,15 @@ canMove(dir) {
     this.showLevelClear();
   }
 
-  /* =====================
-     LEVEL CLEAR ANIMATION
-  ===================== */
   showLevelClear() {
     this.player.setVelocity(0);
-    this.ghosts.setVelocityX(0);
-    this.ghosts.setVelocityY(0);
+    this.ghosts.setVelocity(0);
 
     this.sfxLevelClear.play();
 
     const { width, height } = this.scale;
 
-    const overlay = this.add.rectangle(
+    this.add.rectangle(
       width / 2,
       height / 2,
       width,
@@ -309,14 +282,9 @@ canMove(dir) {
     });
   }
 
-  /* =====================
-     NEXT LEVEL
-  ===================== */
   nextLevel() {
     if (this.levelIndex + 1 >= LEVELS.length) {
-      this.scene.start("GameOverScene", {
-        score: this.score
-      });
+      this.scene.start("GameOverScene", { score: this.score });
     } else {
       this.scene.start("GameScene", {
         level: this.levelIndex + 1,
@@ -328,64 +296,53 @@ canMove(dir) {
   /* =====================
      UPDATE
   ===================== */
- update() {
-  if (this.levelCleared) return;
+  update() {
+    if (this.levelCleared) return;
 
-  const speed = 140;
+    const speed = 140;
 
-  /* =====================
-     INPUT → NEXT DIR
-  ===================== */
-  if (this.cursors.left.isDown) this.nextDir = { x: -1, y: 0 };
-  else if (this.cursors.right.isDown) this.nextDir = { x: 1, y: 0 };
-  else if (this.cursors.up.isDown) this.nextDir = { x: 0, y: -1 };
-  else if (this.cursors.down.isDown) this.nextDir = { x: 0, y: 1 };
+    // INPUT
+    if (this.cursors.left.isDown) this.nextDir = { x: -1, y: 0 };
+    else if (this.cursors.right.isDown) this.nextDir = { x: 1, y: 0 };
+    else if (this.cursors.up.isDown) this.nextDir = { x: 0, y: -1 };
+    else if (this.cursors.down.isDown) this.nextDir = { x: 0, y: 1 };
 
-  if (this.joystick.forceX || this.joystick.forceY) {
-    if (Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)) {
-      this.nextDir = {
-        x: this.joystick.forceX > 0 ? 1 : -1,
-        y: 0
-      };
-    } else {
-      this.nextDir = {
-        x: 0,
-        y: this.joystick.forceY > 0 ? 1 : -1
-      };
+    if (this.joystick.forceX || this.joystick.forceY) {
+      if (Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)) {
+        this.nextDir = {
+          x: this.joystick.forceX > 0 ? 1 : -1,
+          y: 0
+        };
+      } else {
+        this.nextDir = {
+          x: 0,
+          y: this.joystick.forceY > 0 ? 1 : -1
+        };
+      }
     }
-  }
 
-  /* =====================
-     TURN LOGIC
-  ===================== */
-  if (this.isNearCenter(this.player)) {
-    // coba belok
-    if (this.canMove(this.nextDir)) {
-      this.setDirection(this.nextDir);
+    // TURN
+    if (this.isNearCenter(this.player)) {
+      if (this.canMove(this.nextDir)) {
+        this.setDirection(this.nextDir);
+      }
     }
+
+    // MOVE
+    this.player.setVelocity(
+      this.currentDir.x * speed,
+      this.currentDir.y * speed
+    );
+
+    // ROTATE
+    if (this.currentDir.x < 0) this.player.setAngle(180);
+    else if (this.currentDir.x > 0) this.player.setAngle(0);
+    else if (this.currentDir.y < 0) this.player.setAngle(270);
+    else if (this.currentDir.y > 0) this.player.setAngle(90);
+
+    // GHOST AI
+    this.ghosts.children.iterate(g => {
+      this.physics.moveToObject(g, this.player, g.speed);
+    });
   }
-
-  /* =====================
-     APPLY CURRENT DIR
-  ===================== */
-  this.player.setVelocity(
-    this.currentDir.x * speed,
-    this.currentDir.y * speed
-  );
-
-  /* =====================
-     ROTASI PACMAN
-  ===================== */
-  if (this.currentDir.x < 0) this.player.setAngle(180);
-  else if (this.currentDir.x > 0) this.player.setAngle(0);
-  else if (this.currentDir.y < 0) this.player.setAngle(270);
-  else if (this.currentDir.y > 0) this.player.setAngle(90);
-
-  /* =====================
-     GHOST AI
-  ===================== */
-  this.ghosts.children.iterate(g => {
-    this.physics.moveToObject(g, this.player, g.speed);
-  });
 }
-
