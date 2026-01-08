@@ -1,6 +1,6 @@
 export default class GameScene extends Phaser.Scene {
     constructor() {
-        super('GameScene');
+        super({ key: 'GameScene' });
         this.level = 1;
         this.maxLevel = 3;
     }
@@ -10,19 +10,11 @@ export default class GameScene extends Phaser.Scene {
         this.loadLevel(this.level);
     }
 
-    // =====================
-    // CLEAR LEVEL
-    // =====================
     clearLevel() {
-        if (this.player) this.player.destroy();
-        if (this.collects) this.collects.clear(true, true);
-        if (this.walls) this.walls.clear(true, true);
-        if (this.goal) this.goal.destroy();
+        this.children.removeAll();
+        this.physics.world.colliders.destroy();
     }
 
-    // =====================
-    // LOAD LEVEL
-    // =====================
     loadLevel(level) {
         this.clearLevel();
 
@@ -30,28 +22,27 @@ export default class GameScene extends Phaser.Scene {
         this.walls = this.physics.add.staticGroup();
 
         // PLAYER
-        this.player = this.physics.add.rectangle(50, 50, 28, 28, 0x3498db);
+        this.player = this.add.rectangle(50, 50, 28, 28, 0x3498db);
         this.physics.add.existing(this.player);
         this.player.body.setCollideWorldBounds(true);
 
-        // LEVEL CONFIG
         if (level === 1) {
             this.createCollects([
                 { x: 150, y: 100 },
-                { x: 300, y: 150 }
+                { x: 300, y: 200 }
             ]);
-            this.createGoal(400, 250);
+            this.createGoal(450, 300);
         }
 
         if (level === 2) {
             this.createCollects([
-                { x: 100, y: 200 },
-                { x: 200, y: 100 },
-                { x: 350, y: 200 }
+                { x: 100, y: 100 },
+                { x: 250, y: 150 },
+                { x: 400, y: 200 }
             ]);
 
             this.createRedWalls([
-                { x: 200, y: 150, w: 300, h: 20 }
+                { x: 250, y: 180, w: 300, h: 20 }
             ]);
 
             this.createGoal(450, 50);
@@ -59,64 +50,45 @@ export default class GameScene extends Phaser.Scene {
 
         if (level === 3) {
             this.createCollects([
-                { x: 60, y: 300 },
+                { x: 60, y: 350 },
                 { x: 450, y: 80 }
             ]);
 
-            // LABIRIN MERAH
             this.createRedWalls([
                 { x: 200, y: 50, w: 350, h: 20 },
                 { x: 200, y: 350, w: 350, h: 20 },
                 { x: 100, y: 200, w: 20, h: 300 },
-                { x: 300, y: 200, w: 20, h: 300 },
-                { x: 400, y: 200, w: 20, h: 300 }
+                { x: 300, y: 200, w: 20, h: 300 }
             ]);
 
             this.createGoal(470, 370);
         }
 
-        // COLLIDERS
         this.physics.add.collider(this.player, this.walls);
 
-        this.physics.add.overlap(
-            this.player,
-            this.collects,
-            (player, collect) => {
-                collect.destroy();
-            }
-        );
+        this.physics.add.overlap(this.player, this.collects, (_, c) => {
+            c.destroy();
+        });
 
-        this.physics.add.overlap(
-            this.player,
-            this.goal,
-            () => {
-                if (this.collects.countActive(true) === 0) {
-                    this.nextLevel();
-                }
+        this.physics.add.overlap(this.player, this.goal, () => {
+            if (this.collects.countActive(true) === 0) {
+                this.nextLevel();
             }
-        );
+        });
     }
 
-    // =====================
-    // NEXT LEVEL
-    // =====================
     nextLevel() {
-        if (this.level < this.maxLevel) {
-            this.level++;
-            this.loadLevel(this.level);
-        } else {
-            alert('🎉 GAME SELESAI!');
+        this.level++;
+        if (this.level > this.maxLevel) {
+            alert('🎉 GAME SELESAI');
             this.level = 1;
-            this.loadLevel(this.level);
         }
+        this.loadLevel(this.level);
     }
 
-    // =====================
-    // HELPERS
-    // =====================
     createCollects(list) {
-        list.forEach(pos => {
-            const c = this.add.rectangle(pos.x, pos.y, 20, 20, 0xf1c40f);
+        list.forEach(p => {
+            const c = this.add.rectangle(p.x, p.y, 20, 20, 0xf1c40f);
             this.physics.add.existing(c);
             this.collects.add(c);
         });
@@ -135,9 +107,6 @@ export default class GameScene extends Phaser.Scene {
         });
     }
 
-    // =====================
-    // UPDATE
-    // =====================
     update() {
         const speed = 200;
         const body = this.player.body;
