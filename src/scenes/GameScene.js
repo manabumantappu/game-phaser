@@ -202,6 +202,8 @@ export default class GameScene extends Phaser.Scene {
           score: this.score
         });
       }
+       });
+}
      /* =====================
    MOVEMENT HELPERS
 ===================== */
