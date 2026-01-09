@@ -40,11 +40,11 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    // INPUT
+    // ===== INPUT =====
     this.cursors = this.input.keyboard.createCursorKeys();
-    this.joystick = new VirtualJoystick(this); // ✅ BENAR
+    this.joystick = new VirtualJoystick(this);
 
-    // AUDIO SAFE
+    // ===== AUDIO SAFE =====
     this.sfxCollect = this.sound.add("collect", { volume: 0.7 });
     this.sfxPower = this.sound.add("click", { volume: 0.6 });
     this.sfxFrightened = this.sound.add("frightened", { loop: true, volume: 0.5 });
@@ -59,6 +59,78 @@ export default class GameScene extends Phaser.Scene {
     this.createPlayer();
     this.createGhosts();
     this.createHUD();
+    this.createUI();
+  }
+
+  /* =====================
+     MAP (CENTERED)
+  ===================== */
+  buildMap() {
+    this.pellets = [];
+    this.totalPellets = 0;
+
+    this.mapWidth = this.level.map[0].length;
+    this.mapHeight = this.level.map.length;
+
+    // ⬅️ CENTER MAP HORIZONTAL
+    this.mapOffsetX =
+      (this.scale.width - this.mapWidth * TILE) / 2;
+
+    this.level.map.forEach((row, y) => {
+      this.pellets[y] = [];
+
+      [...row].forEach((cell, x) => {
+        const px = this.mapOffsetX + x * TILE + TILE / 2;
+        const py = HUD_HEIGHT + y * TILE + TILE / 2;
+
+        if (cell === "1") {
+          this.add.image(px, py, "wall").setDisplaySize(TILE, TILE);
+          this.pellets[y][x] = null;
+        }
+
+        if (cell === "0" || cell === "2") {
+          const p = this.add.image(px, py, "pellet").setDepth(2);
+          p.isPower = cell === "2";
+          p.setDisplaySize(p.isPower ? 18 : 10, p.isPower ? 18 : 10);
+          if (p.isPower) p.setTint(0x00ff00);
+          this.pellets[y][x] = p;
+          this.totalPellets++;
+        }
+      });
+    });
+  }
+
+  /* =====================
+     PLAYER
+  ===================== */
+  createPlayer() {
+    this.tileX = this.level.player.x;
+    this.tileY = this.level.player.y;
+
+    this.player = this.add.sprite(
+      this.mapOffsetX + this.tileX * TILE + TILE / 2,
+      HUD_HEIGHT + this.tileY * TILE + TILE / 2,
+      "pacman"
+    ).setDisplaySize(28, 28);
+  }
+
+  /* =====================
+     GHOSTS
+  ===================== */
+  createGhosts() {
+    this.level.ghosts.forEach(g => {
+      const ghost = {
+        tileX: g.x,
+        tileY: g.y,
+        moving: false,
+        sprite: this.add.sprite(
+          this.mapOffsetX + g.x * TILE + TILE / 2,
+          HUD_HEIGHT + g.y * TILE + TILE / 2,
+          "ghost"
+        ).setDisplaySize(28, 28)
+      };
+      this.ghosts.push(ghost);
+    });
   }
 
   /* =====================
@@ -101,69 +173,43 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /* =====================
-     MAP
+     UI (MUTE + PAUSE + TEXT)
   ===================== */
-  buildMap() {
-    this.pellets = [];
-    this.totalPellets = 0;
-
-    this.mapWidth = this.level.map[0].length;
-    this.mapHeight = this.level.map.length;
-
-    this.level.map.forEach((row, y) => {
-      this.pellets[y] = [];
-
-      [...row].forEach((cell, x) => {
-        const px = x * TILE + TILE / 2;
-        const py = HUD_HEIGHT + y * TILE + TILE / 2;
-
-        if (cell === "1") {
-          this.add.image(px, py, "wall").setDisplaySize(TILE, TILE);
-          this.pellets[y][x] = null;
-        }
-
-        if (cell === "0" || cell === "2") {
-          const p = this.add.image(px, py, "pellet").setDepth(2);
-          p.isPower = cell === "2";
-          p.setDisplaySize(p.isPower ? 18 : 10, p.isPower ? 18 : 10);
-          if (p.isPower) p.setTint(0x00ff00);
-          this.pellets[y][x] = p;
-          this.totalPellets++;
-        }
-      });
+  createUI() {
+    // PAUSE
+    this.add.text(12, this.scale.height - 36, "⏸", {
+      fontSize: "24px"
+    }).setInteractive().on("pointerdown", () => {
+      this.scene.pause();
+      this.scene.launch("MenuScene");
     });
-  }
 
-  /* =====================
-     PLAYER
-  ===================== */
-  createPlayer() {
-    this.tileX = this.level.player.x;
-    this.tileY = this.level.player.y;
+    // MUTE
+    const mute = this.add.text(
+      this.scale.width - 36,
+      this.scale.height - 36,
+      "🔊",
+      { fontSize: "24px" }
+    ).setInteractive();
 
-    this.player = this.add.sprite(
-      this.tileX * TILE + TILE / 2,
-      HUD_HEIGHT + this.tileY * TILE + TILE / 2,
-      "pacman"
-    ).setDisplaySize(28, 28);
-  }
+    mute.on("pointerdown", () => {
+      this.sound.mute = !this.sound.mute;
+      mute.setText(this.sound.mute ? "🔇" : "🔊");
+    });
 
-  /* =====================
-     GHOSTS
-  ===================== */
-  createGhosts() {
-    this.level.ghosts.forEach(g => {
-      const ghost = {
-        tileX: g.x,
-        tileY: g.y,
-        moving: false,
-        sprite: this.add.sprite(
-          g.x * TILE + TILE / 2,
-          HUD_HEIGHT + g.y * TILE + TILE / 2,
-          "ghost"
-        ).setDisplaySize(28, 28)
-      };
-      this.ghosts.push(ghost);
+    // TEXT BERJALAN
+    const text = this.add.text(
+      this.scale.width / 2,
+      this.scale.height - 36,
+      "GOOD LUCK!",
+      { fontSize: "14px", color: "#ffffff" }
+    ).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      x: { from: this.scale.width + 80, to: -80 },
+      duration: 8000,
+      repeat: -1
     });
   }
 
@@ -186,9 +232,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   canMove(x, y) {
-    if (x < 0 || x >= this.mapWidth) return false;
-    if (y < 0 || y >= this.mapHeight) return false;
-    return this.level.map[y][x] !== "1";
+    return (
+      x >= 0 &&
+      y >= 0 &&
+      x < this.mapWidth &&
+      y < this.mapHeight &&
+      this.level.map[y][x] !== "1"
+    );
   }
 
   /* =====================
@@ -197,7 +247,7 @@ export default class GameScene extends Phaser.Scene {
   update() {
     this.readInput();
 
-    if (!this.moving && (this.nextDir.x !== 0 || this.nextDir.y !== 0)) {
+    if (!this.moving && (this.nextDir.x || this.nextDir.y)) {
       if (this.canMove(this.tileX + this.nextDir.x, this.tileY + this.nextDir.y)) {
         this.startMove(this.nextDir);
       }
@@ -218,7 +268,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.player,
-      x: tx * TILE + TILE / 2,
+      x: this.mapOffsetX + tx * TILE + TILE / 2,
       y: HUD_HEIGHT + ty * TILE + TILE / 2,
       duration: MOVE_TIME,
       onComplete: () => {
@@ -243,7 +293,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /* =====================
-     GHOST MOVE
+     MOVE GHOSTS
   ===================== */
   moveGhosts() {
     this.ghosts.forEach(g => {
@@ -265,7 +315,7 @@ export default class GameScene extends Phaser.Scene {
       g.moving = true;
       this.tweens.add({
         targets: g.sprite,
-        x: nx * TILE + TILE / 2,
+        x: this.mapOffsetX + nx * TILE + TILE / 2,
         y: HUD_HEIGHT + ny * TILE + TILE / 2,
         duration: MOVE_TIME + 60,
         onComplete: () => {
@@ -299,6 +349,7 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   levelClear() {
     this.sfxLevelClear.play();
+
     this.add.text(
       this.scale.width / 2,
       this.scale.height / 2,
