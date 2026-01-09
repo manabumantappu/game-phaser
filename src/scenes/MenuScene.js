@@ -6,18 +6,20 @@ export default class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    // Background
+    /* =====================
+       BACKGROUND
+    ===================== */
     this.add.rectangle(
       width / 2,
       height / 2,
       width,
       height,
       0x000000
-    );
+    ).setDepth(0);
 
-    // =====================
-    // JUDUL GAME
-    // =====================
+    /* =====================
+       TITLE
+    ===================== */
     const title = this.add.text(
       width / 2,
       height * 0.3,
@@ -29,9 +31,9 @@ export default class MenuScene extends Phaser.Scene {
         align: "center"
       }
     )
-    .setOrigin(0.5);
+    .setOrigin(0.5)
+    .setDepth(5);
 
-    // Animasi masuk (halus)
     title.setScale(0.2);
     this.tweens.add({
       targets: title,
@@ -40,7 +42,9 @@ export default class MenuScene extends Phaser.Scene {
       ease: "Back.Out"
     });
 
-    // Subtitle
+    /* =====================
+       SUBTITLE
+    ===================== */
     this.add.text(
       width / 2,
       height * 0.42,
@@ -49,18 +53,20 @@ export default class MenuScene extends Phaser.Scene {
         fontSize: "14px",
         color: "#ffffff"
       }
-    ).setOrigin(0.5);
+    ).setOrigin(0.5).setDepth(5);
 
-    // =====================
-    // BUTTON START
-    // =====================
+    /* =====================
+       START BUTTON
+    ===================== */
     const btn = this.add.rectangle(
       width / 2,
       height * 0.6,
       220,
       54,
       0xffff00
-    ).setInteractive({ useHandCursor: true });
+    )
+    .setInteractive({ useHandCursor: true })
+    .setDepth(10);
 
     const btnText = this.add.text(
       width / 2,
@@ -71,16 +77,33 @@ export default class MenuScene extends Phaser.Scene {
         fontStyle: "bold",
         color: "#000000"
       }
-    ).setOrigin(0.5);
+    ).setOrigin(0.5).setDepth(11);
 
+    // efek tekan (UX bagus)
     btn.on("pointerdown", () => {
+      btn.setScale(0.95);
+      btnText.setScale(0.95);
+    });
+
+    btn.on("pointerup", () => {
+      btn.setScale(1);
+      btnText.setScale(1);
+
       this.scene.start("GameScene", {
         level: 0,
-        score: 0
+        score: 0,
+        lives: 3
       });
     });
 
-    // Footer
+    btn.on("pointerout", () => {
+      btn.setScale(1);
+      btnText.setScale(1);
+    });
+
+    /* =====================
+       FOOTER
+    ===================== */
     this.add.text(
       width / 2,
       height - 30,
@@ -89,6 +112,6 @@ export default class MenuScene extends Phaser.Scene {
         fontSize: "12px",
         color: "#aaaaaa"
       }
-    ).setOrigin(0.5);
+    ).setOrigin(0.5).setDepth(5);
   }
 }
