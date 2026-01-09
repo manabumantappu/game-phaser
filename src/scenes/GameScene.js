@@ -6,7 +6,7 @@ import VirtualJoystick from "../ui/VirtualJoystick.js";
 ===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
-const MOVE_DURATION = 260;
+const MOVE_DURATION = 280;
 const POWER_TIME = 6000;
 
 export default class GameScene extends Phaser.Scene {
@@ -22,12 +22,12 @@ export default class GameScene extends Phaser.Scene {
     this.score = data.score ?? 0;
     this.lives = data.lives ?? 3;
 
+    this.currentDir = { x: 0, y: 0 };
+    this.nextDir = { x: 0, y: 0 };
+
     this.tileX = 0;
     this.tileY = 0;
     this.moving = false;
-
-    this.currentDir = { x: 0, y: 0 };
-    this.nextDir = { x: 0, y: 0 };
 
     this.frightened = false;
     this.frightenedTimer = null;
@@ -46,30 +46,24 @@ export default class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.joystick = new VirtualJoystick(this);
 
-    // 🔓 unlock audio mobile
+    // 🔓 unlock audio (mobile)
     this.input.once("pointerdown", () => {
       if (this.sound.context.state === "suspended") {
         this.sound.context.resume();
       }
     });
 
-    // 🔊 SFX
+    // 🔊 sounds
     this.sfxCollect = this.sound.add("collect", { volume: 0.8 });
-    this.sfxPower = this.sound.add("click", { volume: 0.7 });
+    this.sfxPower = this.sound.add("click", { volume: 0.8 });
     this.sfxFrightened = this.sound.add("frightened", {
       loop: true,
       volume: 0.5
     });
 
-    /* =====================
-       ✅ BGM FIX (INI INTINYA)
-    ===================== */
     this.bgm = this.sound.get("bgm");
     if (!this.bgm) {
-      this.bgm = this.sound.add("bgm", {
-        loop: true,
-        volume: 0.4
-      });
+      this.bgm = this.sound.add("bgm", { loop: true, volume: 0.4 });
       this.bgm.play();
     }
 
@@ -140,9 +134,9 @@ export default class GameScene extends Phaser.Scene {
         }
         else if (cell === "0" || cell === "2") {
           const p = this.add.image(px, py, "pellet");
-          p.setDisplaySize(cell === "2" ? 18 : 12, cell === "2" ? 18 : 12);
           p.isPower = cell === "2";
-          if (p.isPower) p.setTint(0x00ff00);
+          p.setDisplaySize(p.isPower ? 18 : 12, p.isPower ? 18 : 12);
+          if (p.isPower) p.setTint(0x00ff00); // 🟢 power pellet
           this.pellets[y][x] = p;
           this.totalPellets++;
         } else {
@@ -167,18 +161,36 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /* =====================
+     GHOSTS
+  ===================== */
+  createGhosts() {
+    this.ghosts = [];
+
+    this.level.ghosts.forEach(g => {
+      this.ghosts.push({
+        tileX: g.x,
+        tileY: g.y,
+        spawnX: g.x,
+        spawnY: g.y,
+        moving: false,
+        sprite: this.add.sprite(
+          g.x * TILE + TILE / 2,
+          HUD_HEIGHT + g.y * TILE + TILE / 2,
+          "ghost"
+        ).setDisplaySize(28, 28)
+      });
+    });
+  }
+
+  /* =====================
      FRIGHTENED MODE
   ===================== */
   startFrightenedMode() {
     this.frightened = true;
     this.sfxPower.play();
 
-    if (this.bgm && this.bgm.isPlaying) {
-      this.bgm.pause();
-    }
-    if (!this.sfxFrightened.isPlaying) {
-      this.sfxFrightened.play();
-    }
+    if (this.bgm?.isPlaying) this.bgm.pause();
+    if (!this.sfxFrightened.isPlaying) this.sfxFrightened.play();
 
     this.ghosts.forEach(g => g.sprite.setTint(0x0000ff));
 
@@ -190,20 +202,201 @@ export default class GameScene extends Phaser.Scene {
 
   endFrightenedMode() {
     this.frightened = false;
+    this.sfxFrightened.stop();
+    this.bgm?.resume();
+    this.ghosts.forEach(g => g.sprite.clearTint());
+  }
 
-    if (this.sfxFrightened.isPlaying) {
-      this.sfxFrightened.stop();
-    }
-    if (this.bgm && !this.bgm.isPlaying) {
-      this.bgm.resume();
-    }
+  /* =====================
+     LEVEL CLEAR
+  ===================== */
+  showLevelClear() {
+    const text = this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2,
+      "LEVEL CLEAR",
+      {
+        fontSize: "36px",
+        fontStyle: "bold",
+        color: "#ffff00"
+      }
+    ).setOrigin(0.5).setDepth(100);
 
-    this.ghosts.forEach(g => {
-      g.sprite.clearTint();
+    this.tweens.add({
+      targets: text,
+      scale: { from: 0.3, to: 1 },
+      duration: 400,
+      ease: "Back.Out"
+    });
+
+    this.time.delayedCall(1200, () => {
+      this.nextLevel();
     });
   }
 
   /* =====================
-     (SISA KODE TIDAK DIUBAH)
+     INPUT
   ===================== */
+  readInput() {
+    if (this.cursors.left.isDown) this.nextDir = { x: -1, y: 0 };
+    else if (this.cursors.right.isDown) this.nextDir = { x: 1, y: 0 };
+    else if (this.cursors.up.isDown) this.nextDir = { x: 0, y: -1 };
+    else if (this.cursors.down.isDown) this.nextDir = { x: 0, y: 1 };
+
+    if (this.joystick.forceX || this.joystick.forceY) {
+      this.nextDir =
+        Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)
+          ? { x: Math.sign(this.joystick.forceX), y: 0 }
+          : { x: 0, y: Math.sign(this.joystick.forceY) };
+    }
+  }
+
+  /* =====================
+     GRID CHECK + PORTAL
+  ===================== */
+  canMove(x, y) {
+    if (x < 0) x = this.mapWidth - 1;
+    if (x >= this.mapWidth) x = 0;
+    if (y < 0 || y >= this.mapHeight) return false;
+    return this.level.map[y][x] !== "1";
+  }
+
+  /* =====================
+     UPDATE
+  ===================== */
+  update() {
+    this.readInput();
+
+    if (!this.moving) {
+      if (this.canMove(this.tileX + this.nextDir.x, this.tileY + this.nextDir.y)) {
+        this.startMove(this.nextDir);
+      } else if (this.canMove(this.tileX + this.currentDir.x, this.tileY + this.currentDir.y)) {
+        this.startMove(this.currentDir);
+      }
+    }
+
+    this.moveGhosts();
+  }
+
+  /* =====================
+     MOVE PLAYER
+  ===================== */
+  startMove(dir) {
+    this.moving = true;
+    this.currentDir = dir;
+
+    let tx = this.tileX + dir.x;
+    let ty = this.tileY + dir.y;
+
+    if (tx < 0) tx = this.mapWidth - 1;
+    if (tx >= this.mapWidth) tx = 0;
+
+    this.tweens.add({
+      targets: this.player,
+      x: tx * TILE + TILE / 2,
+      y: HUD_HEIGHT + ty * TILE + TILE / 2,
+      duration: MOVE_DURATION,
+      onComplete: () => {
+        this.tileX = tx;
+        this.tileY = ty;
+        this.moving = false;
+
+        const pellet = this.pellets[ty]?.[tx];
+        if (pellet) {
+          pellet.destroy();
+          this.pellets[ty][tx] = null;
+          this.totalPellets--;
+          this.score += pellet.isPower ? 50 : 10;
+          this.sfxCollect.play();
+          if (pellet.isPower) this.startFrightenedMode();
+          this.updateHUD();
+        }
+
+        if (this.totalPellets === 0) {
+          this.showLevelClear();
+        }
+      }
+    });
+  }
+
+  /* =====================
+     MOVE GHOSTS
+  ===================== */
+  moveGhosts() {
+    this.ghosts.forEach(g => {
+      if (g.moving) return;
+
+      const dx = this.tileX - g.tileX;
+      const dy = this.tileY - g.tileY;
+
+      let dir =
+        Math.abs(dx) > Math.abs(dy)
+          ? { x: Math.sign(dx), y: 0 }
+          : { x: 0, y: Math.sign(dy) };
+
+      let nx = g.tileX + dir.x;
+      let ny = g.tileY + dir.y;
+
+      if (!this.canMove(nx, ny)) return;
+
+      g.moving = true;
+      this.tweens.add({
+        targets: g.sprite,
+        x: nx * TILE + TILE / 2,
+        y: HUD_HEIGHT + ny * TILE + TILE / 2,
+        duration: this.frightened
+          ? MOVE_DURATION + 160
+          : MOVE_DURATION + 40 - this.ghostSpeedBonus,
+        onComplete: () => {
+          g.tileX = nx;
+          g.tileY = ny;
+          g.moving = false;
+
+          if (g.tileX === this.tileX && g.tileY === this.tileY) {
+            this.onHitGhost(g);
+          }
+        }
+      });
+    });
+  }
+
+  /* =====================
+     HIT GHOST
+  ===================== */
+  onHitGhost(ghost) {
+    if (this.frightened) {
+      ghost.tileX = ghost.spawnX;
+      ghost.tileY = ghost.spawnY;
+      ghost.sprite.setPosition(
+        ghost.tileX * TILE + TILE / 2,
+        HUD_HEIGHT + ghost.tileY * TILE + TILE / 2
+      );
+      this.score += 200;
+      this.updateHUD();
+    } else {
+      this.lives--;
+      this.updateHUD();
+
+      if (this.lives <= 0) {
+        this.scene.start("MenuScene");
+      } else {
+        this.scene.restart({
+          level: this.levelIndex,
+          score: this.score,
+          lives: this.lives
+        });
+      }
+    }
+  }
+
+  /* =====================
+     NEXT LEVEL
+  ===================== */
+  nextLevel() {
+    this.scene.start("GameScene", {
+      level: this.levelIndex + 1,
+      score: this.score,
+      lives: this.lives
+    });
+  }
 }
