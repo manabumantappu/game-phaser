@@ -6,7 +6,7 @@ import VirtualJoystick from "../ui/VirtualJoystick.js";
 ===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
-const PLAYER_SPEED = 260;
+const PLAYER_SPEED = 320;
 const GHOST_BASE_SPEED = 220;
 const POWER_TIME = 6000;
 
