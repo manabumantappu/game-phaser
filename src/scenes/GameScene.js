@@ -1,13 +1,13 @@
 import { LEVELS } from "../data/levels.js";
 import VirtualJoystick from "../ui/VirtualJoystick.js";
 
+/* =====================
+   CONSTANTS
+===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
-const MOVE_TIME = 180;
+const MOVE_TIME = 220;
 const POWER_TIME = 6000;
-
-const MAP_WIDTH = 13 * TILE;
-const MAP_OFFSET_X = (480 - MAP_WIDTH) / 2;
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -22,16 +22,15 @@ export default class GameScene extends Phaser.Scene {
     this.score = data.score ?? 0;
     this.lives = data.lives ?? 3;
 
+    this.currentDir = { x: 0, y: 0 };
+    this.nextDir = { x: 0, y: 0 };
+
     this.tileX = 0;
     this.tileY = 0;
     this.moving = false;
 
-    this.currentDir = { x: 0, y: 0 };
-    this.nextDir = { x: 0, y: 0 };
-
-    this.isPaused = false;
-    this.isMuted = false;
     this.frightened = false;
+    this.ghosts = [];
   }
 
   /* =====================
@@ -45,22 +44,17 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.joystick = new VirtualJoystick(this, {
+      x: this.scale.width / 2,
+      y: this.scale.height - 100,
+      fixed: true
+    });
 
-    // 🎮 joystick tengah bawah
-   this.joystick = new VirtualJoystick(this, {
-  x: this.scale.width / 2,
-  y: this.scale.height - 100,
-  radius: 50,
-  baseRadius: 60,
-  baseColor: 0x444444,
-  thumbColor: 0xffffff,
-  fixed: true   // 🔴 KUNCI POSISI
-});
-
-
-    /* 🔊 AUDIO SAFE */
-    this.sfxCollect = this.sound.add("collect", { volume: 0.6 });
+    // AUDIO (SAFE)
+    this.sfxCollect = this.sound.add("collect", { volume: 0.7 });
+    this.sfxPower = this.sound.add("click", { volume: 0.6 });
     this.sfxFrightened = this.sound.add("frightened", { loop: true, volume: 0.5 });
+    this.sfxLevelClear = this.sound.add("levelclear", { volume: 0.8 });
 
     if (!this.sound.get("bgm")) {
       this.bgm = this.sound.add("bgm", { loop: true, volume: 0.4 });
@@ -71,61 +65,41 @@ export default class GameScene extends Phaser.Scene {
     this.createPlayer();
     this.createGhosts();
     this.createHUD();
-    this.createUI();
   }
 
   /* =====================
      MAP
   ===================== */
   buildMap() {
-  this.pellets = [];
-  this.totalPellets = 0;
+    this.pellets = [];
+    this.totalPellets = 0;
 
-  this.mapWidth = this.level.map[0].length;
-  this.mapHeight = this.level.map.length;
+    this.mapWidth = this.level.map[0].length;
+    this.mapHeight = this.level.map.length;
 
-  this.level.map.forEach((row, y) => {
-    this.pellets[y] = [];
+    this.level.map.forEach((row, y) => {
+      this.pellets[y] = [];
 
-    [...row].forEach((cell, x) => {
-      const px = MAP_OFFSET_X + x * TILE + TILE / 2;
-      const py = HUD_HEIGHT + y * TILE + TILE / 2;
+      [...row].forEach((cell, x) => {
+        const px = x * TILE + TILE / 2;
+        const py = HUD_HEIGHT + y * TILE + TILE / 2;
 
-      // WALL (depth 1)
-      if (cell === "1") {
-        this.add
-          .image(px, py, "wall")
-          .setDisplaySize(TILE, TILE)
-          .setDepth(1);
-
-        this.pellets[y][x] = null;
-        return;
-      }
-
-      // PELLET
-      if (cell === "0" || cell === "2") {
-        const p = this.add
-          .image(px, py, "pellet")
-          .setDepth(2); // 🔴 PENTING
-
-        p.isPower = cell === "2";
-
-        if (p.isPower) {
-          p.setDisplaySize(18, 18).setTint(0x00ff00);
-        } else {
-          p.setDisplaySize(10, 10);
+        if (cell === "1") {
+          this.add.image(px, py, "wall").setDisplaySize(TILE, TILE);
+          this.pellets[y][x] = null;
         }
 
-        this.pellets[y][x] = p;
-        this.totalPellets++;
-        return;
-      }
-
-      this.pellets[y][x] = null;
+        if (cell === "0" || cell === "2") {
+          const p = this.add.image(px, py, "pellet").setDepth(2);
+          p.isPower = cell === "2";
+          p.setDisplaySize(p.isPower ? 18 : 10, p.isPower ? 18 : 10);
+          if (p.isPower) p.setTint(0x00ff00);
+          this.pellets[y][x] = p;
+          this.totalPellets++;
+        }
+      });
     });
-  });
-}
-
+  }
 
   /* =====================
      PLAYER
@@ -135,7 +109,7 @@ export default class GameScene extends Phaser.Scene {
     this.tileY = this.level.player.y;
 
     this.player = this.add.sprite(
-      MAP_OFFSET_X + this.tileX * TILE + TILE / 2,
+      this.tileX * TILE + TILE / 2,
       HUD_HEIGHT + this.tileY * TILE + TILE / 2,
       "pacman"
     ).setDisplaySize(28, 28);
@@ -145,98 +119,18 @@ export default class GameScene extends Phaser.Scene {
      GHOSTS
   ===================== */
   createGhosts() {
-    this.ghosts = [];
-
     this.level.ghosts.forEach(g => {
       const ghost = {
         tileX: g.x,
         tileY: g.y,
+        moving: false,
         sprite: this.add.sprite(
-          MAP_OFFSET_X + g.x * TILE + TILE / 2,
+          g.x * TILE + TILE / 2,
           HUD_HEIGHT + g.y * TILE + TILE / 2,
           "ghost"
-        ).setDisplaySize(28, 28),
-        moving: false
+        ).setDisplaySize(28, 28)
       };
       this.ghosts.push(ghost);
-    });
-  }
-
-  /* =====================
-     HUD
-  ===================== */
-  createHUD() {
-    this.add.rectangle(
-      this.scale.width / 2,
-      HUD_HEIGHT / 2,
-      this.scale.width,
-      HUD_HEIGHT,
-      0x000000,
-      0.6
-    );
-
-    this.txtScore = this.add.text(12, 24, `SCORE ${this.score}`, {
-      fontSize: "18px",
-      color: "#ffff00"
-    });
-
-    this.txtLives = this.add.text(
-      this.scale.width / 2,
-      24,
-      `❤️ ${this.lives}`,
-      { fontSize: "18px", color: "#ff4444" }
-    ).setOrigin(0.5, 0);
-
-    this.txtLevel = this.add.text(
-      this.scale.width - 12,
-      24,
-      `L${this.levelIndex + 1}`,
-      { fontSize: "18px", color: "#ffffff" }
-    ).setOrigin(1, 0);
-  }
-
-  updateHUD() {
-    this.txtScore.setText(`SCORE ${this.score}`);
-    this.txtLives.setText(`❤️ ${this.lives}`);
-  }
-
-  /* =====================
-     UI (PAUSE, MUTE, TEXT)
-  ===================== */
-  createUI() {
-    // pause
-    const pause = this.add.text(12, this.scale.height - 40, "⏸", {
-      fontSize: "22px"
-    }).setInteractive();
-
-    pause.on("pointerdown", () => {
-      this.isPaused = !this.isPaused;
-    });
-
-    // mute
-    const mute = this.add.text(this.scale.width - 40, this.scale.height - 40, "🔊", {
-      fontSize: "22px"
-    }).setInteractive();
-
-    mute.on("pointerdown", () => {
-      this.isMuted = !this.isMuted;
-      this.sound.mute = this.isMuted;
-      mute.setText(this.isMuted ? "🔇" : "🔊");
-    });
-
-    // marquee
-    this.marquee = this.add.text(
-      this.scale.width,
-      this.scale.height - 40,
-      "GOOD LUCK!",
-      { fontSize: "14px", color: "#ffffff" }
-    );
-
-    this.tweens.add({
-      targets: this.marquee,
-      x: -120,
-      duration: 8000,
-      repeat: -1
     });
   }
 
@@ -259,7 +153,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   canMove(x, y) {
-    if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return false;
+    if (x < 0 || x >= this.mapWidth) return false;
+    if (y < 0 || y >= this.mapHeight) return false;
     return this.level.map[y][x] !== "1";
   }
 
@@ -267,19 +162,20 @@ export default class GameScene extends Phaser.Scene {
      UPDATE
   ===================== */
   update() {
-    if (this.isPaused) return;
-
     this.readInput();
 
     if (!this.moving) {
       if (this.canMove(this.tileX + this.nextDir.x, this.tileY + this.nextDir.y)) {
         this.startMove(this.nextDir);
-      } else if (this.canMove(this.tileX + this.currentDir.x, this.tileY + this.currentDir.y)) {
-        this.startMove(this.currentDir);
       }
     }
+
+    this.moveGhosts();
   }
 
+  /* =====================
+     MOVE PLAYER
+  ===================== */
   startMove(dir) {
     this.moving = true;
     this.currentDir = dir;
@@ -289,7 +185,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.player,
-      x: MAP_OFFSET_X + tx * TILE + TILE / 2,
+      x: tx * TILE + TILE / 2,
       y: HUD_HEIGHT + ty * TILE + TILE / 2,
       duration: MOVE_TIME,
       onComplete: () => {
@@ -304,9 +200,88 @@ export default class GameScene extends Phaser.Scene {
           this.totalPellets--;
           this.score += pellet.isPower ? 50 : 10;
           this.sfxCollect.play();
-          this.updateHUD();
+
+          if (pellet.isPower) this.startFrightened();
+        }
+
+        if (this.totalPellets === 0) {
+          this.levelClear();
         }
       }
+    });
+  }
+
+  /* =====================
+     GHOST MOVE
+  ===================== */
+  moveGhosts() {
+    this.ghosts.forEach(g => {
+      if (g.moving) return;
+
+      const dx = this.tileX - g.tileX;
+      const dy = this.tileY - g.tileY;
+
+      const dir =
+        Math.abs(dx) > Math.abs(dy)
+          ? { x: Math.sign(dx), y: 0 }
+          : { x: 0, y: Math.sign(dy) };
+
+      const nx = g.tileX + dir.x;
+      const ny = g.tileY + dir.y;
+
+      if (!this.canMove(nx, ny)) return;
+
+      g.moving = true;
+      this.tweens.add({
+        targets: g.sprite,
+        x: nx * TILE + TILE / 2,
+        y: HUD_HEIGHT + ny * TILE + TILE / 2,
+        duration: MOVE_TIME + 40,
+        onComplete: () => {
+          g.tileX = nx;
+          g.tileY = ny;
+          g.moving = false;
+        }
+      });
+    });
+  }
+
+  /* =====================
+     FRIGHTENED
+  ===================== */
+  startFrightened() {
+    this.frightened = true;
+    this.bgm.pause();
+    this.sfxFrightened.play();
+
+    this.ghosts.forEach(g => g.sprite.setTint(0x0000ff));
+
+    this.time.delayedCall(POWER_TIME, () => {
+      this.frightened = false;
+      this.sfxFrightened.stop();
+      this.bgm.resume();
+      this.ghosts.forEach(g => g.sprite.clearTint());
+    });
+  }
+
+  /* =====================
+     LEVEL CLEAR
+  ===================== */
+  levelClear() {
+    this.sfxLevelClear.play();
+    this.add.text(
+      this.scale.width / 2,
+      this.scale.height / 2,
+      "LEVEL CLEAR",
+      { fontSize: "36px", color: "#ffff00", fontStyle: "bold" }
+    ).setOrigin(0.5);
+
+    this.time.delayedCall(1200, () => {
+      this.scene.start("GameScene", {
+        level: this.levelIndex + 1,
+        score: this.score,
+        lives: this.lives
+      });
     });
   }
 }
