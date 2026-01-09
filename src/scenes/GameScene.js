@@ -2,14 +2,17 @@ import { LEVELS } from "../data/levels.js";
 import VirtualJoystick from "../ui/VirtualJoystick.js";
 
 /* =====================
-   CONSTANTS (STABLE)
+   CONSTANTS
 ===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
-
-const PLAYER_SPEED = 180;
-const GHOST_BASE_SPEED = 150;
+const PLAYER_SPEED = 160;
+const GHOST_SPEED = 120;
 const POWER_TIME = 6000;
+
+// map 13 tile = 416px → center di layar 480px
+const MAP_WIDTH = 13 * TILE;
+const MAP_OFFSET_X = (480 - MAP_WIDTH) / 2;
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -24,12 +27,9 @@ export default class GameScene extends Phaser.Scene {
     this.score = data.score ?? 0;
     this.lives = data.lives ?? 3;
 
-    this.isPaused = false;
-    this.isMuted = false;
-    this.frightened = false;
-
     this.currentDir = { x: 0, y: 0 };
     this.nextDir = { x: 0, y: 0 };
+    this.frightened = false;
   }
 
   /* =====================
@@ -45,11 +45,8 @@ export default class GameScene extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.joystick = new VirtualJoystick(this);
 
-    /* ===== AUDIO SAFE ===== */
-    this.sfxCollect = this.sound.add("collect", { volume: 0.7 });
-    this.sfxClick = this.sound.add("click", { volume: 0.6 });
+    this.sfxCollect = this.sound.add("collect", { volume: 0.6 });
     this.sfxFrightened = this.sound.add("frightened", { loop: true, volume: 0.5 });
-    this.sfxLevelClear = this.sound.add("levelclear", { volume: 0.8 });
 
     if (!this.sound.get("bgm")) {
       this.bgm = this.sound.add("bgm", { loop: true, volume: 0.4 });
@@ -60,7 +57,6 @@ export default class GameScene extends Phaser.Scene {
     this.createPlayer();
     this.createGhosts();
     this.createHUD();
-    this.createUIButtons();
   }
 
   /* =====================
@@ -75,7 +71,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.level.map.forEach((row, y) => {
       [...row].forEach((cell, x) => {
-        const px = x * TILE + TILE / 2;
+        const px = MAP_OFFSET_X + x * TILE + TILE / 2;
         const py = HUD_HEIGHT + y * TILE + TILE / 2;
 
         if (cell === "1") {
@@ -87,7 +83,7 @@ export default class GameScene extends Phaser.Scene {
           const p = this.pellets.create(px, py, "pellet");
           p.setDisplaySize(cell === "2" ? 18 : 10, cell === "2" ? 18 : 10);
           p.isPower = cell === "2";
-          if (p.isPower) p.setTint(0x00ff00); // 🟢 power pellet
+          if (p.isPower) p.setTint(0x00ff00);
         }
       });
     });
@@ -100,7 +96,7 @@ export default class GameScene extends Phaser.Scene {
     const { x, y } = this.level.player;
 
     this.player = this.physics.add.sprite(
-      x * TILE + TILE / 2,
+      MAP_OFFSET_X + x * TILE + TILE / 2,
       HUD_HEIGHT + y * TILE + TILE / 2,
       "pacman"
     );
@@ -117,23 +113,18 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   createGhosts() {
     this.ghosts = this.physics.add.group();
-    const speedBonus = Math.min(this.levelIndex * 12, 100);
 
     this.level.ghosts.forEach(g => {
       const ghost = this.ghosts.create(
-        g.x * TILE + TILE / 2,
+        MAP_OFFSET_X + g.x * TILE + TILE / 2,
         HUD_HEIGHT + g.y * TILE + TILE / 2,
         "ghost"
       );
 
       ghost.setDisplaySize(28, 28);
-      ghost.spawnX = ghost.x;
-      ghost.spawnY = ghost.y;
-      ghost.baseSpeed = GHOST_BASE_SPEED + speedBonus;
-
-      this.physics.add.collider(ghost, this.walls);
     });
 
+    this.physics.add.collider(this.ghosts, this.walls);
     this.physics.add.overlap(this.player, this.ghosts, this.onHitGhost, null, this);
   }
 
@@ -152,8 +143,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.txtScore = this.add.text(12, 24, `SCORE ${this.score}`, {
       fontSize: "18px",
-      color: "#ffff00",
-      fontStyle: "bold"
+      color: "#ffff00"
     });
 
     this.txtLives = this.add.text(
@@ -162,13 +152,6 @@ export default class GameScene extends Phaser.Scene {
       `❤️ ${this.lives}`,
       { fontSize: "18px", color: "#ff4444" }
     ).setOrigin(0.5, 0);
-
-    this.txtLevel = this.add.text(
-      this.scale.width - 12,
-      24,
-      `L${this.levelIndex + 1}`,
-      { fontSize: "18px", color: "#ffffff" }
-    ).setOrigin(1, 0);
   }
 
   updateHUD() {
@@ -177,115 +160,54 @@ export default class GameScene extends Phaser.Scene {
   }
 
   /* =====================
-     UI BUTTONS
+     GRID CHECK
   ===================== */
-  createUIButtons() {
-    // MUTE
-    const mute = this.add.text(
-      this.scale.width - 44,
-      this.scale.height - 40,
-      "🔊",
-      { fontSize: "22px" }
-    ).setInteractive();
+  isCenteredOnTile() {
+    const cx = MAP_OFFSET_X +
+      Math.round((this.player.x - MAP_OFFSET_X) / TILE) * TILE;
+    const cy = HUD_HEIGHT +
+      Math.round((this.player.y - HUD_HEIGHT) / TILE) * TILE;
 
-    mute.on("pointerdown", () => {
-      this.isMuted = !this.isMuted;
-      this.sound.mute = this.isMuted;
-      mute.setText(this.isMuted ? "🔇" : "🔊");
-    });
-
-    // PAUSE
-    const pause = this.add.text(
-      12,
-      this.scale.height - 40,
-      "⏸",
-      { fontSize: "22px" }
-    ).setInteractive();
-
-    pause.on("pointerdown", () => {
-      this.isPaused = !this.isPaused;
-      this.physics.world.isPaused = this.isPaused;
-    });
-
-    // marquee
-    const marquee = this.add.text(
-      this.scale.width / 2,
-      this.scale.height - 40,
-      "GOOD LUCK!",
-      { fontSize: "14px", color: "#ffffff" }
-    ).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: marquee,
-      x: { from: this.scale.width + 100, to: -100 },
-      duration: 9000,
-      repeat: -1
-    });
+    return (
+      Math.abs(this.player.x - cx) < 2 &&
+      Math.abs(this.player.y - cy) < 2
+    );
   }
 
   /* =====================
-     UPDATE
+     UPDATE (PAC-MAN STYLE)
   ===================== */
- update() {
-  if (this.isPaused) return;
-  if (!this.player) return;
+  update() {
+    let inputDir = { x: 0, y: 0 };
 
-  /* =====================
-     RESET INPUT
-  ===================== */
-  this.nextDir = { x: 0, y: 0 };
+    if (this.cursors.left?.isDown) inputDir = { x: -1, y: 0 };
+    else if (this.cursors.right?.isDown) inputDir = { x: 1, y: 0 };
+    else if (this.cursors.up?.isDown) inputDir = { x: 0, y: -1 };
+    else if (this.cursors.down?.isDown) inputDir = { x: 0, y: 1 };
 
-  /* =====================
-     KEYBOARD INPUT
-  ===================== */
-  if (this.cursors.left?.isDown) this.nextDir = { x: -1, y: 0 };
-  else if (this.cursors.right?.isDown) this.nextDir = { x: 1, y: 0 };
-  else if (this.cursors.up?.isDown) this.nextDir = { x: 0, y: -1 };
-  else if (this.cursors.down?.isDown) this.nextDir = { x: 0, y: 1 };
-
-  /* =====================
-     JOYSTICK INPUT
-  ===================== */
-  if (this.joystick && (this.joystick.forceX || this.joystick.forceY)) {
-    if (Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)) {
-      this.nextDir = { x: Math.sign(this.joystick.forceX), y: 0 };
-    } else {
-      this.nextDir = { x: 0, y: Math.sign(this.joystick.forceY) };
+    if (this.joystick && (this.joystick.forceX || this.joystick.forceY)) {
+      if (Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)) {
+        inputDir = { x: Math.sign(this.joystick.forceX), y: 0 };
+      } else {
+        inputDir = { x: 0, y: Math.sign(this.joystick.forceY) };
+      }
     }
-  }
 
-  /* =====================
-     UPDATE CURRENT DIR
-  ===================== */
-  if (this.nextDir.x !== 0 || this.nextDir.y !== 0) {
-    this.currentDir = this.nextDir;
-  }
+    if (inputDir.x !== 0 || inputDir.y !== 0) {
+      this.nextDir = inputDir;
+    }
 
-  /* =====================
-     APPLY VELOCITY (ONCE)
-  ===================== */
-  this.player.setVelocity(
-    this.currentDir.x * PLAYER_SPEED,
-    this.currentDir.y * PLAYER_SPEED
-  );
+    if (this.isCenteredOnTile()) {
+      this.currentDir = this.nextDir;
+    }
 
-  /* =====================
-     MOVE GHOSTS
-  ===================== */
-  this.moveGhosts();
-}
+    this.player.setVelocity(
+      this.currentDir.x * PLAYER_SPEED,
+      this.currentDir.y * PLAYER_SPEED
+    );
 
-
-  /* =====================
-     GHOST MOVE
-  ===================== */
-  moveGhosts() {
     this.ghosts.children.iterate(g => {
-      this.physics.moveToObject(
-        g,
-        this.player,
-        this.frightened ? g.baseSpeed * 0.45 : g.baseSpeed
-      );
+      this.physics.moveToObject(g, this.player, GHOST_SPEED);
     });
   }
 
@@ -297,65 +219,20 @@ export default class GameScene extends Phaser.Scene {
     this.score += pellet.isPower ? 50 : 10;
     this.updateHUD();
     this.sfxCollect.play();
-
-    if (pellet.isPower) this.startFrightened();
-    if (this.pellets.countActive(true) === 0) this.levelClear();
   }
 
-  startFrightened() {
-    this.frightened = true;
+  onHitGhost() {
+    this.lives--;
+    this.updateHUD();
 
-    if (this.bgm.isPlaying) this.bgm.pause();
-    if (!this.sfxFrightened.isPlaying) this.sfxFrightened.play();
-
-    this.ghosts.children.iterate(g => g.setTint(0x0000ff));
-
-    this.time.delayedCall(POWER_TIME, () => {
-      this.frightened = false;
-      this.sfxFrightened.stop();
-      this.bgm.resume();
-      this.ghosts.children.iterate(g => g.clearTint());
-    });
-  }
-
-  onHitGhost(player, ghost) {
-    if (this.frightened) {
-      ghost.setPosition(ghost.spawnX, ghost.spawnY);
-      this.score += 200;
-      this.updateHUD();
+    if (this.lives <= 0) {
+      this.scene.start("MenuScene");
     } else {
-      this.lives--;
-      this.updateHUD();
-
-      if (this.lives <= 0) {
-        this.scene.start("MenuScene");
-      } else {
-        this.scene.restart({
-          level: this.levelIndex,
-          score: this.score,
-          lives: this.lives
-        });
-      }
-    }
-  }
-
-  levelClear() {
-    this.player.setVelocity(0);
-    this.sfxLevelClear.play();
-
-    const txt = this.add.text(
-      this.scale.width / 2,
-      this.scale.height / 2,
-      "LEVEL CLEAR",
-      { fontSize: "36px", color: "#ffff00", fontStyle: "bold" }
-    ).setOrigin(0.5);
-
-    this.time.delayedCall(1200, () => {
-      this.scene.start("GameScene", {
-        level: this.levelIndex + 1,
+      this.scene.restart({
+        level: this.levelIndex,
         score: this.score,
         lives: this.lives
       });
-    });
+    }
   }
 }
