@@ -6,47 +6,125 @@ export default class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
 
-    this.add.rectangle(width/2, height/2, width, height, 0x000000);
+    /* ======================
+       BACKGROUND
+    ====================== */
+    this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x111111
+    );
 
+    /* ======================
+       TITLE
+    ====================== */
     this.add.text(
-      width/2,
-      height*0.3,
-      "MANABU\nMANTAPPU",
+      width / 2,
+      height * 0.28,
+      "MAZE\nPUZZLE",
       {
         fontSize: "42px",
+        color: "#ffffff",
         fontStyle: "bold",
-        color: "#ffff00",
         align: "center"
       }
     ).setOrigin(0.5);
 
-    const btn = this.add.rectangle(
-      width/2,
-      height*0.6,
-      220,
-      54,
-      0xffff00
-    )
-    .setInteractive({ useHandCursor: true });
-
     this.add.text(
-      width/2,
-      height*0.6,
-      "START",
+      width / 2,
+      height * 0.4,
+      "Mobile Puzzle Game",
       {
-        fontSize: "20px",
-        fontStyle: "bold",
-        color: "#000000"
+        fontSize: "14px",
+        color: "#aaaaaa"
       }
     ).setOrigin(0.5);
 
-    btn.on("pointerdown", () => {
-      this.sound.play("click");
-      this.scene.start("GameScene", {
-        level: 0,
-        score: 0,
-        lives: 3
-      });
+    /* ======================
+       BUTTONS
+    ====================== */
+    this.createButton(
+      width / 2,
+      height * 0.55,
+      "START",
+      () => {
+        this.unlockAudio();
+this.sound.play("click", { volume: 0.7 });
+
+this.scene.start("GameScene", { level: 0 });
+       
+       }
+    );
+
+       /* ======================
+       FOOTER
+    ====================== */
+    this.add.text(
+      width / 2,
+      height - 30,
+      "Tap button to play",
+      {
+        fontSize: "12px",
+        color: "#777777"
+      }
+    ).setOrigin(0.5);
+  }
+
+  /* ======================
+     AUDIO SAFE FUNCTIONS
+  ====================== */
+  unlockAudio() {
+  if (this.sound.context && this.sound.context.state === "suspended") {
+    this.sound.unlock();
+  }
+}
+
+  safePlayClick() {
+    if (this.sound && this.sound.get("click")) {
+      this.sound.play("click", { volume: 0.6 });
+    }
+  }
+
+  /* ======================
+     BUTTON COMPONENT
+  ====================== */
+  createButton(x, y, label, onClick) {
+    const btnWidth = 220;
+    const btnHeight = 54;
+
+    const button = this.add.rectangle(
+      x,
+      y,
+      btnWidth,
+      btnHeight,
+      0x00bfa5
+    ).setInteractive({ useHandCursor: true });
+
+    const text = this.add.text(
+      x,
+      y,
+      label,
+      {
+        fontSize: "18px",
+        color: "#000000",
+        fontStyle: "bold"
+      }
+    ).setOrigin(0.5);
+
+    button.on("pointerdown", () => {
+      button.setScale(0.95);
+      navigator.vibrate?.(20);
+    });
+
+    button.on("pointerup", () => {
+      button.setScale(1);
+      onClick();
+    });
+
+    button.on("pointerout", () => {
+      button.setScale(1);
     });
   }
 }
