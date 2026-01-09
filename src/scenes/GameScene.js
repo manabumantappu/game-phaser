@@ -6,8 +6,8 @@ import VirtualJoystick from "../ui/VirtualJoystick.js";
 ===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
-const PLAYER_SPEED = 320;
-const GHOST_BASE_SPEED = 220;
+const PLAYER_SPEED = 180;
+const GHOST_BASE_SPEED = 150;
 const POWER_TIME = 6000;
 
 export default class GameScene extends Phaser.Scene {
@@ -219,7 +219,10 @@ export default class GameScene extends Phaser.Scene {
     else if (this.cursors.down.isDown) this.nextDir = { x: 0, y: 1 };
 
     // joystick
-    if (this.joystick.forceX || this.joystick.forceY) {
+    if (
+  Math.abs(this.joystick.forceX) > 0.1 ||
+  Math.abs(this.joystick.forceY) > 0.1) {
+
       if (Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)) {
         this.nextDir = { x: Math.sign(this.joystick.forceX), y: 0 };
       } else {
