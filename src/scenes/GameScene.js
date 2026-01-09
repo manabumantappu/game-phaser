@@ -2,10 +2,11 @@ import { LEVELS } from "../data/levels.js";
 import VirtualJoystick from "../ui/VirtualJoystick.js";
 
 /* =====================
-   CONSTANTS
+   CONSTANTS (STABLE)
 ===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
+
 const PLAYER_SPEED = 180;
 const GHOST_BASE_SPEED = 150;
 const POWER_TIME = 6000;
@@ -97,6 +98,7 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   createPlayer() {
     const { x, y } = this.level.player;
+
     this.player = this.physics.add.sprite(
       x * TILE + TILE / 2,
       HUD_HEIGHT + y * TILE + TILE / 2,
@@ -115,7 +117,7 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   createGhosts() {
     this.ghosts = this.physics.add.group();
-    const speedBonus = Math.min(this.levelIndex * 15, 120);
+    const speedBonus = Math.min(this.levelIndex * 12, 100);
 
     this.level.ghosts.forEach(g => {
       const ghost = this.ghosts.create(
@@ -125,19 +127,13 @@ export default class GameScene extends Phaser.Scene {
       );
 
       ghost.setDisplaySize(28, 28);
-      ghost.type = g.type || "blinky";
+      ghost.spawnX = ghost.x;
+      ghost.spawnY = ghost.y;
       ghost.baseSpeed = GHOST_BASE_SPEED + speedBonus;
 
-      const colors = {
-        blinky: 0xff0000,
-        pinky: 0xff77ff,
-        inky: 0x00ffff,
-        clyde: 0xffaa00
-      };
-      ghost.setTint(colors[ghost.type] || 0xffffff);
+      this.physics.add.collider(ghost, this.walls);
     });
 
-    this.physics.add.collider(this.ghosts, this.walls);
     this.physics.add.overlap(this.player, this.ghosts, this.onHitGhost, null, this);
   }
 
@@ -145,21 +141,34 @@ export default class GameScene extends Phaser.Scene {
      HUD
   ===================== */
   createHUD() {
-    this.add.rectangle(this.scale.width / 2, HUD_HEIGHT / 2,
-      this.scale.width, HUD_HEIGHT, 0x000000, 0.6);
+    this.add.rectangle(
+      this.scale.width / 2,
+      HUD_HEIGHT / 2,
+      this.scale.width,
+      HUD_HEIGHT,
+      0x000000,
+      0.6
+    );
 
     this.txtScore = this.add.text(12, 24, `SCORE ${this.score}`, {
-      fontSize: "18px", color: "#ffff00", fontStyle: "bold"
+      fontSize: "18px",
+      color: "#ffff00",
+      fontStyle: "bold"
     });
 
-    this.txtLives = this.add.text(this.scale.width / 2, 24, `❤️ ${this.lives}`, {
-      fontSize: "18px", color: "#ff4444"
-    }).setOrigin(0.5, 0);
+    this.txtLives = this.add.text(
+      this.scale.width / 2,
+      24,
+      `❤️ ${this.lives}`,
+      { fontSize: "18px", color: "#ff4444" }
+    ).setOrigin(0.5, 0);
 
-    this.txtLevel = this.add.text(this.scale.width - 12, 24,
-      `L${this.levelIndex + 1}`, {
-        fontSize: "18px", color: "#ffffff"
-      }).setOrigin(1, 0);
+    this.txtLevel = this.add.text(
+      this.scale.width - 12,
+      24,
+      `L${this.levelIndex + 1}`,
+      { fontSize: "18px", color: "#ffffff" }
+    ).setOrigin(1, 0);
   }
 
   updateHUD() {
@@ -172,8 +181,12 @@ export default class GameScene extends Phaser.Scene {
   ===================== */
   createUIButtons() {
     // MUTE
-    const mute = this.add.text(this.scale.width - 50, this.scale.height - 40,
-      "🔊", { fontSize: "24px" }).setInteractive();
+    const mute = this.add.text(
+      this.scale.width - 44,
+      this.scale.height - 40,
+      "🔊",
+      { fontSize: "22px" }
+    ).setInteractive();
 
     mute.on("pointerdown", () => {
       this.isMuted = !this.isMuted;
@@ -182,16 +195,20 @@ export default class GameScene extends Phaser.Scene {
     });
 
     // PAUSE
-    const pause = this.add.text(12, this.scale.height - 40,
-      "⏸", { fontSize: "24px" }).setInteractive();
+    const pause = this.add.text(
+      12,
+      this.scale.height - 40,
+      "⏸",
+      { fontSize: "22px" }
+    ).setInteractive();
 
     pause.on("pointerdown", () => {
       this.isPaused = !this.isPaused;
       this.physics.world.isPaused = this.isPaused;
     });
 
-    // text berjalan
-    this.marquee = this.add.text(
+    // marquee
+    const marquee = this.add.text(
       this.scale.width / 2,
       this.scale.height - 40,
       "GOOD LUCK!",
@@ -199,15 +216,15 @@ export default class GameScene extends Phaser.Scene {
     ).setOrigin(0.5);
 
     this.tweens.add({
-      targets: this.marquee,
+      targets: marquee,
       x: { from: this.scale.width + 100, to: -100 },
-      duration: 8000,
+      duration: 9000,
       repeat: -1
     });
   }
 
   /* =====================
-     INPUT + MOVE
+     UPDATE
   ===================== */
   update() {
     if (this.isPaused) return;
@@ -218,11 +235,11 @@ export default class GameScene extends Phaser.Scene {
     else if (this.cursors.up.isDown) this.nextDir = { x: 0, y: -1 };
     else if (this.cursors.down.isDown) this.nextDir = { x: 0, y: 1 };
 
-    // joystick
+    // joystick (DESKTOP SAFE)
     if (
-  Math.abs(this.joystick.forceX) > 0.1 ||
-  Math.abs(this.joystick.forceY) > 0.1) {
-
+      Math.abs(this.joystick.forceX) > 0.1 ||
+      Math.abs(this.joystick.forceY) > 0.1
+    ) {
       if (Math.abs(this.joystick.forceX) > Math.abs(this.joystick.forceY)) {
         this.nextDir = { x: Math.sign(this.joystick.forceX), y: 0 };
       } else {
@@ -230,9 +247,14 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
+    // simpan arah terakhir
+    if (this.nextDir.x !== 0 || this.nextDir.y !== 0) {
+      this.currentDir = this.nextDir;
+    }
+
     this.player.setVelocity(
-      this.nextDir.x * PLAYER_SPEED,
-      this.nextDir.y * PLAYER_SPEED
+      this.currentDir.x * PLAYER_SPEED,
+      this.currentDir.y * PLAYER_SPEED
     );
 
     this.moveGhosts();
@@ -246,7 +268,7 @@ export default class GameScene extends Phaser.Scene {
       this.physics.moveToObject(
         g,
         this.player,
-        this.frightened ? g.baseSpeed * 0.4 : g.baseSpeed
+        this.frightened ? g.baseSpeed * 0.45 : g.baseSpeed
       );
     });
   }
@@ -266,8 +288,9 @@ export default class GameScene extends Phaser.Scene {
 
   startFrightened() {
     this.frightened = true;
-    this.bgm.pause();
-    this.sfxFrightened.play();
+
+    if (this.bgm.isPlaying) this.bgm.pause();
+    if (!this.sfxFrightened.isPlaying) this.sfxFrightened.play();
 
     this.ghosts.children.iterate(g => g.setTint(0x0000ff));
 
@@ -281,14 +304,22 @@ export default class GameScene extends Phaser.Scene {
 
   onHitGhost(player, ghost) {
     if (this.frightened) {
-      ghost.destroy();
+      ghost.setPosition(ghost.spawnX, ghost.spawnY);
       this.score += 200;
       this.updateHUD();
     } else {
       this.lives--;
       this.updateHUD();
-      if (this.lives <= 0) this.scene.start("MenuScene");
-      else this.scene.restart({ level: this.levelIndex, score: this.score, lives: this.lives });
+
+      if (this.lives <= 0) {
+        this.scene.start("MenuScene");
+      } else {
+        this.scene.restart({
+          level: this.levelIndex,
+          score: this.score,
+          lives: this.lives
+        });
+      }
     }
   }
 
