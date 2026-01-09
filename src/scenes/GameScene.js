@@ -6,8 +6,8 @@ import VirtualJoystick from "../ui/VirtualJoystick.js";
 ===================== */
 const TILE = 32;
 const HUD_HEIGHT = 80;
-const PLAYER_SPEED = 220;
-const GHOST_BASE_SPEED = 180;
+const PLAYER_SPEED = 260;
+const GHOST_BASE_SPEED = 220;
 const POWER_TIME = 6000;
 
 export default class GameScene extends Phaser.Scene {
