@@ -4,9 +4,9 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   preload() {
-    // Ganti path sesuai aset kamu
-    this.load.audio("intro", "assets/sound/intro.mp3");
-    this.load.audio("click", "assets/sound/click.wav");
+    // === AUDIO (PATH BENAR) ===
+    this.load.audio("intro", "assets/audio/intro.mp3");
+    this.load.audio("click", "assets/audio/click.wav");
   }
 
   create() {
@@ -16,23 +16,22 @@ export default class MenuScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor("#000000");
 
-    // ===== SOUND INTRO =====
+    // ===== INTRO SOUND =====
     this.introSound = this.sound.add("intro", {
       volume: 0.6,
       loop: false,
     });
     this.introSound.play();
 
-    // ===== JUDUL GAME =====
+    // ===== TITLE =====
     const title = this.add.text(cx, cy - 140, "KEJAR TIKUS!", {
       fontSize: "36px",
       fontFamily: "Arial",
       color: "#ffff00",
     })
-    .setOrigin(0.5)
-    .setAlpha(0);
+      .setOrigin(0.5)
+      .setAlpha(0);
 
-    // Animasi judul (fade + scale)
     this.tweens.add({
       targets: title,
       alpha: 1,
@@ -47,8 +46,8 @@ export default class MenuScene extends Phaser.Scene {
       fontFamily: "Arial",
       color: "#00ffff",
     })
-    .setOrigin(0.5)
-    .setAlpha(0);
+      .setOrigin(0.5)
+      .setAlpha(0);
 
     this.tweens.add({
       targets: brand,
@@ -57,28 +56,24 @@ export default class MenuScene extends Phaser.Scene {
       duration: 600,
     });
 
-    // ===== TOMBOL START =====
+    // ===== START BUTTON =====
     const startBtn = this.add.text(cx, cy + 20, "START", {
       fontSize: "24px",
       color: "#ffffff",
       backgroundColor: "#333333",
       padding: { x: 30, y: 12 },
     })
-    .setOrigin(0.5)
-    .setInteractive({ useHandCursor: true })
-    .setAlpha(0);
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setAlpha(0);
 
-    // Muncul setelah intro
     this.tweens.add({
       targets: startBtn,
       alpha: 1,
-      y: cy,
       delay: 800,
       duration: 500,
-      ease: "Power2",
     });
 
-    // Hover effect
     startBtn.on("pointerover", () => {
       startBtn.setStyle({ backgroundColor: "#555555" });
     });
@@ -87,16 +82,13 @@ export default class MenuScene extends Phaser.Scene {
       startBtn.setStyle({ backgroundColor: "#333333" });
     });
 
-    // Klik START
     startBtn.on("pointerdown", () => {
       this.sound.play("click");
 
-      // Stop intro sound
-      if (this.introSound.isPlaying) {
+      if (this.introSound?.isPlaying) {
         this.introSound.stop();
       }
 
-      // Animasi keluar sebelum pindah scene
       this.tweens.add({
         targets: [title, brand, startBtn],
         alpha: 0,
