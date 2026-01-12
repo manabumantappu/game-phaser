@@ -32,7 +32,7 @@ export default class GameScene extends Phaser.Scene {
  /* ==========================================
      Mode bisa mati true - mode hidup terus false
   ============================================ */
-    this.allowDeath = true; // default: pacman=tikus mode bisa diganti
+    this.allowDeath = false; // default: pacman=tikus mode bisa diganti
 
   }
 
